@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SinalVortex.API/SinalVortex.API.csproj" />
+  <Project Path="SinalVortex.Application/SinalVortex.Application.csproj" />
+  <Project Path="SinalVortex.Domain/SinalVortex.Domain.csproj" />
+  <Project Path="SinalVortex.Infrastructure/SinalVortex.Infrastructure.csproj" />
+  <Project Path="SinalVortex.Worker/SinalVortex.Worker.csproj" />
+</Solution>

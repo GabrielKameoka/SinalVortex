@@ -1,0 +1,42 @@
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.suo
+*.csproj.user
+.vs/
+
+# Angular
+node_modules/
+dist/
+.angular/
+coverage/
+
+# Environment
+.env
+.env.local
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/tasks.json
+
+# Build artifacts
+publish/
+
+# Database
+postgres_data/
+
+# Dependencies
+package-lock.json
+yarn.lock
+

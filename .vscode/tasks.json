@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Backend API",
+      "type": "shell",
+      "command": "cd backend && dotnet run --project SinalVortex.API/SinalVortex.API.csproj",
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "Start Frontend",
+      "type": "shell",
+      "command": "cd frontend/app && npm start",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "Start Database",
+      "type": "shell",
+      "command": "docker-compose up -d",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": false
+    },
+    {
+      "label": "Build Backend",
+      "type": "shell",
+      "command": "cd backend && dotnet build",
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false
+      }
+    },
+    {
+      "label": "Build Frontend",
+      "type": "shell",
+      "command": "cd frontend/app && npm run build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false
+      }
+    }
+  ]
+}

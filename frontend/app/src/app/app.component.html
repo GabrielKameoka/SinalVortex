@@ -1,0 +1,33 @@
+<div class="container">
+  <div class="header">
+    <h1>{{ title }}</h1>
+    <p>Backend Status Checker</p>
+  </div>
+
+  <div class="content">
+    <div *ngIf="isLoading" class="loading">
+      <p>Conectando ao backend...</p>
+    </div>
+
+    <div *ngIf="error && !isLoading" class="error">
+      <h3>⚠️ Erro</h3>
+      <p>{{ error }}</p>
+    </div>
+
+    <div *ngIf="healthStatus && !isLoading" class="success">
+      <h3>✅ Backend Conectado</h3>
+      <p>Status: <strong>{{ healthStatus.status }}</strong></p>
+      <p>Timestamp: <strong>{{ healthStatus.timestamp | date:'short' }}</strong></p>
+    </div>
+
+    <button (click)="checkHealth()" class="btn-refresh">
+      Atualizar Status
+    </button>
+  </div>
+
+  <div class="footer">
+    <p>SinalVortex Application</p>
+  </div>
+</div>
+
+<router-outlet></router-outlet>
