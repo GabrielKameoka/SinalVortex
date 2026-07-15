@@ -1,0 +1,6 @@
+# Evita enviar arquivos compilados locais do Mac para o Docker da Railway
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/.git/
