@@ -2,15 +2,15 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
 WORKDIR /app
 
-# Copia tudo de uma vez para dentro do container
-# Com o .dockerignore configurado acima, apenas o seu código limpo será copiado
+# Copia todo o código do backend para o container
 COPY . ./
 
-# Restaura as dependências usando a solução
-RUN dotnet restore SinalVortex.slnx
+# Restaura as dependências focando diretamente na API 
+# (o .NET resolve as dependências do Domain, Application e Infrastructure sozinho!)
+RUN dotnet restore SinalVortex.API/SinalVortex.API.csproj
 
-# Compila e publica a API
-RUN dotnet publish SinalVortex.API/SinalVortex.API.csproj -c Release -o out
+# Compila e publica a API sem precisar referenciar a solução diretamente
+RUN dotnet publish SinalVortex.API/SinalVortex.API.csproj -c Release -o out --no-restore
 
 # Estágio de Execução (.NET 10 Runtime)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
