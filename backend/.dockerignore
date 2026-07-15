@@ -1,6 +1,6 @@
-# Evita enviar arquivos compilados locais do Mac para o Docker da Railway
+# Ignora apenas pastas de build locais e arquivos do VS/Rider
+.idea/
+.vscode/
 **/bin/
 **/obj/
-**/.vs/
-**/.idea/
-**/.git/
+*.user
