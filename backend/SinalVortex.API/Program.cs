@@ -38,6 +38,31 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        
+        // Verifica se há migrações pendentes e as aplica no banco da Railway
+        if (context.Database.GetPendingMigrations().Any())
+        {
+            Console.WriteLine("Aplicando migrations pendentes no banco de dados da Railway...");
+            context.Database.Migrate();
+            Console.WriteLine("Banco de dados atualizado com sucesso!");
+        }
+        else
+        {
+            Console.WriteLine("Nenhuma migration pendente detectada.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao aplicar migrations na inicialização: {ex.Message}");
+    }
+}
+
 app.UseHttpsRedirection();
 app.UseCors("AllowAngular");
 app.MapControllers();
