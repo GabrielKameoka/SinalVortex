@@ -11,7 +11,7 @@ export interface HealthCheckResponse {
   providedIn: 'root'
 })
 export class HealthService {
-  private apiUrl = 'http://localhost:5000/api/health';
+  private apiUrl = 'http://localhost:5287/api/health';
 
   constructor(private http: HttpClient) { }
 
