@@ -2,10 +2,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
 WORKDIR /app
 
-# Copia todo o código limpo do backend (graças ao novo .dockerignore corrigido)
-COPY . ./
+# Copia todo o código do backend a partir do contexto da raiz do monorepo
+COPY backend/ ./
 
-# Restaura as dependências da API
+# Restaura as dependências da API apontando para o caminho correto
 RUN dotnet restore SinalVortex.API/SinalVortex.API.csproj
 
 # Compila e publica a API
