@@ -2,26 +2,31 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
 WORKDIR /app
 
-# Copia a solução e restaura as dependências respeitando o monorepo
-COPY SinalVortex.sln ./
-COPY src/1.Domain/SinalVortex.Domain.csproj src/1.Domain/
-COPY src/2.Application/SinalVortex.Application.csproj src/2.Application/
-COPY src/3.Infrastructure/SinalVortex.Infrastructure.csproj src/3.Infrastructure/
-COPY src/4.API/SinalVortex.API.csproj src/4.API/
-COPY src/5.Worker/SinalVortex.Worker.csproj src/5.Worker/
+# Copia o ficheiro de solução novo (.slnx)
+COPY SinalVortex.slnx ./
 
-RUN dotnet restore SinalVortex.sln
+# Copia os ficheiros de projeto (.csproj) respeitando a tua estrutura real (sem "src" e sem números)
+COPY SinalVortex.Domain/SinalVortex.Domain.csproj SinalVortex.Domain/
+COPY SinalVortex.Application/SinalVortex.Application.csproj SinalVortex.Application/
+COPY SinalVortex.Infrastructure/SinalVortex.Infrastructure.csproj SinalVortex.Infrastructure/
+COPY SinalVortex.API/SinalVortex.API.csproj SinalVortex.API/
+COPY SinalVortex.Worker/SinalVortex.Worker.csproj SinalVortex.Worker/
 
-# Copia todo o restante do código e compila a API
+# Restaura as dependências usando o novo formato de solução do .NET
+RUN dotnet restore SinalVortex.slnx
+
+# Copia todo o código restante do backend
 COPY . ./
-RUN dotnet publish src/4.API/SinalVortex.API.csproj -c Release -o out
+
+# Publica a API diretamente a partir da pasta correta
+RUN dotnet publish SinalVortex.API/SinalVortex.API.csproj -c Release -o out
 
 # Estágio de Execução (.NET 10 Runtime)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build-env /app/out .
 
-# Expõe a porta padrão do ASP.NET
+# Expõe a porta que a Railway vai escutar
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
