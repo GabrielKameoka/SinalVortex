@@ -2,22 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
 WORKDIR /app
 
-# Copia todo o código do backend para o container
+# Copia tudo o que o Docker acha que deve copiar
 COPY . ./
 
-# Restaura as dependências focando diretamente na API 
-# (o .NET resolve as dependências do Domain, Application e Infrastructure sozinho!)
-RUN dotnet restore SinalVortex.API/SinalVortex.API.csproj
+# LISTA OS ARQUIVOS PARA O LOG DE BUILD DA RAILWAY (Isso vai salvar a nossa vida!)
+RUN pwd && ls -la && ls -la SinalVortex.API || echo "Pasta API nao encontrada"
 
-# Compila e publica a API sem precisar referenciar a solução diretamente
-RUN dotnet publish SinalVortex.API/SinalVortex.API.csproj -c Release -o out --no-restore
-
-# Estágio de Execução (.NET 10 Runtime)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
-WORKDIR /app
-COPY --from=build-env /app/out .
-
-ENV ASPNETCORE_URLS=http://+:8080
-EXPOSE 8080
-
-ENTRYPOINT ["dotnet", "SinalVortex.API.dll"]
+# Mantemos o comando padrão só para não quebrar a sintaxe do Dockerfile
+RUN dotnet --version
