@@ -18,11 +18,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: sinalvortex_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   adminer:
     image: adminer
     container_name: sinalvortex_adminer
     ports:
-      - "8080:8080"
+      - "8081:8080" # Mudei para 8081 para não dar conflito se a API rodar na 8080 localmente
     depends_on:
       - postgres
 

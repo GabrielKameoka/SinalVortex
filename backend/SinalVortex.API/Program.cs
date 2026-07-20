@@ -1,6 +1,9 @@
 using SinalVortex.Application.Services;
 using SinalVortex.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Infrastructure.Services;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,12 +11,29 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Configuração da String de Conexão do Redis (Suporta Local e Railway)
+var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection")
+                            ?? "localhost:6379";
+
+// Registro do Redis no Inversion of Control (IoC)
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+    options.InstanceName = "SinalVortex_";
+});
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+    ConnectionMultiplexer.Connect(redisConnectionString));
+
+// Registra nossa Abstração do Cache
+builder.Services.AddScoped<ICacheService, RedisCacheService>();
+
 // Register Application Services
 builder.Services.AddScoped<IHealthService, HealthService>();
 
 // Add Database Context
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
@@ -44,7 +64,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        
+
         // Verifica se há migrações pendentes e as aplica no banco da Railway
         if (context.Database.GetPendingMigrations().Any())
         {
