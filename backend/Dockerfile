@@ -2,14 +2,15 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
 WORKDIR /app
 
+# Recebe qual projeto compilar (Padrão: SinalVortex.API)
+ARG PROJECT_NAME=SinalVortex.API
+
 # Copia todo o código do backend
 COPY backend/ ./
 
-# Restaura as dependências da API
-RUN dotnet restore SinalVortex.API/SinalVortex.API.csproj
-
-# Compila e publica a API
-RUN dotnet publish SinalVortex.API/SinalVortex.API.csproj -c Release -o out --no-restore
+# Restaura e publica o projeto informado no ARG
+RUN dotnet restore ${PROJECT_NAME}/${PROJECT_NAME}.csproj
+RUN dotnet publish ${PROJECT_NAME}/${PROJECT_NAME}.csproj -c Release -o out --no-restore
 
 # Estágio de Execução (.NET 10 Runtime)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
@@ -19,4 +20,9 @@ COPY --from=build-env /app/out .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "SinalVortex.API.dll"]
+# Recebe o nome da DLL no estágio final
+ARG PROJECT_NAME=SinalVortex.API
+ENV DLL_NAME=${PROJECT_NAME}.dll
+
+# Executa dinamicamente a DLL gerada (API.dll ou Worker.dll)
+ENTRYPOINT ["sh", "-c", "exec dotnet $DLL_NAME"]
