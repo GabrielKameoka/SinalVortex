@@ -1,15 +1,18 @@
-name: Continuous Integration & Deployment (CI/CD)
+name: Continuous Integration (CI)
 
 on:
   push:
-    branches: [ "main" ] # CD roda principalmente ao juntar código na main
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
 
 jobs:
-  # 1. ETAPA DE CI (Compilação e Testes)
   backend-ci:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -26,15 +29,3 @@ jobs:
       - name: Run tests
         run: dotnet test --no-build --configuration Release --verbosity normal
         working-directory: ./backend
-
-  # 2. ETAPA DE CD (Deploy para a Railway)
-  backend-cd:
-    name: Deploy API to Railway
-    needs: backend-ci # 🔴 Só executa se a etapa de CI passar!
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Só faz deploy na branch main
-
-    steps:
-      - name: Trigger Railway Deploy Webhook
-        run: |
-          curl -X POST "${{ secrets.RAILWAY_API_DEPLOY_WEBHOOK }}"
