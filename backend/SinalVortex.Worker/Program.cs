@@ -4,7 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
-using SinalVortex.Infrastructure.Data;
+
+using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Worker;
 using StackExchange.Redis;

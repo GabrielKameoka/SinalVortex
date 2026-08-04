@@ -9,6 +9,12 @@ public sealed class Destinatario : ValueObject
 {
     public string Valor { get; private set; }
 
+    // Exigido pelo EF Core para instanciação em queries
+    private Destinatario() 
+    { 
+        Valor = string.Empty; 
+    }
+
     private Destinatario(string valor)
     {
         Valor = valor;
@@ -34,7 +40,6 @@ public sealed class Destinatario : ValueObject
                 ValidarUrl(valor);
                 break;
             case CanalNotificacao.Push:
-                // Device token / Push ID - Apenas valida tamanho mínimo
                 if (valor.Length < 10)
                     throw new DomainException("Token de Push Notification inválido.");
                 break;
@@ -52,11 +57,11 @@ public sealed class Destinatario : ValueObject
 
     private static string ValidarETratarTelefone(string telefone)
     {
-        var ApenasNumeros = Regex.Replace(telefone, @"[^\d]", "");
-        if (ApenasNumeros.Length < 10 || ApenasNumeros.Length > 15)
+        var apenasNumeros = Regex.Replace(telefone, @"[^\d]", "");
+        if (apenasNumeros.Length < 10 || apenasNumeros.Length > 15)
             throw new DomainException($"Número de telefone/WhatsApp inválido: '{telefone}'");
 
-        return ApenasNumeros;
+        return apenasNumeros;
     }
 
     private static void ValidarUrl(string url)

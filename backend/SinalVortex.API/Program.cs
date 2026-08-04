@@ -1,22 +1,29 @@
-using SinalVortex.Application.Services;
-using SinalVortex.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Application.Services;
+using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Services;
 using StackExchange.Redis;
-using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// 1. Controllers & Documentação OpenAPI / Scalar
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// Configuração da String de Conexão do Redis (Suporta Local e Railway)
+// 2. Configurações de Conexão (PostgreSQL & Redis)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+
 var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection")
                             ?? "localhost:6379";
 
-// Registro do Redis no Inversion of Control (IoC)
+// 3. Banco de Dados - PostgreSQL via Entity Framework Core
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// 4. Redis - IDistributedCache + Multiplexer para Filas
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConnectionString;
@@ -26,29 +33,19 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = ConfigurationOptions.Parse(redisConnectionString);
-    configuration.AbortOnConnectFail = false; // Não derruba a aplicação se o Redis estiver inicializando
+    configuration.AbortOnConnectFail = false; // Garante resiliência no startup da aplicação
     return ConnectionMultiplexer.Connect(configuration);
 });
 
-// Registra nossa Abstração do Cache
+// 5. Injeção de Serviços do Negócio e Infraestrutura
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
-
-// Register Application Services
 builder.Services.AddScoped<IHealthService, HealthService>();
 
-// Registra o MediatR escaneando os Handlers que estão no projeto Application
-builder.Services.AddMediatR(cfg => 
+// 6. MediatR - Registra Handlers escaneando a marcação AssemblyReference da camada Application
+builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
 
-// Add Database Context
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString)
-);
-
-// CORS configuration
+// 7. CORS - Política para o Frontend em Angular
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular", policy =>
@@ -61,22 +58,20 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// 8. Pipeline HTTP - Scalar API Reference no Ambiente de Desenvolvimento
 if (app.Environment.IsDevelopment())
 {
-    // Mapeia o documento JSON do OpenAPI (.NET 10)
     app.MapOpenApi();
-
-    // 2. Mapeia a interface visual do Scalar
     app.MapScalarApiReference(options =>
     {
         options
             .WithTitle("SinalVortex API")
-            .WithTheme(ScalarTheme.Moon) // Temas: Moon, Purple, Solarized, Dracula, etc.
+            .WithTheme(ScalarTheme.Moon)
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
 }
 
+// 9. Execução de Migrations Pendentes no PostgreSQL durante o Startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -84,10 +79,9 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
 
-        // Verifica se há migrações pendentes e as aplica no banco da Railway
         if (context.Database.GetPendingMigrations().Any())
         {
-            Console.WriteLine("Aplicando migrations pendentes no banco de dados da Railway...");
+            Console.WriteLine("Aplicando migrations pendentes no banco de dados...");
             context.Database.Migrate();
             Console.WriteLine("Banco de dados atualizado com sucesso!");
         }
@@ -102,6 +96,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// 10. Middlewares e Rotas
 app.UseHttpsRedirection();
 app.UseCors("AllowAngular");
 app.MapControllers();
