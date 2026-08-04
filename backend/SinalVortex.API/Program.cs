@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Infrastructure.Services;
 using StackExchange.Redis;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,14 +23,22 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "SinalVortex_";
 });
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
-    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = ConfigurationOptions.Parse(redisConnectionString);
+    configuration.AbortOnConnectFail = false; // Não derruba a aplicação se o Redis estiver inicializando
+    return ConnectionMultiplexer.Connect(configuration);
+});
 
 // Registra nossa Abstração do Cache
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 
 // Register Application Services
 builder.Services.AddScoped<IHealthService, HealthService>();
+
+// Registra o MediatR escaneando os Handlers que estão no projeto Application
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
 
 // Add Database Context
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -55,7 +64,17 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
+    // Mapeia o documento JSON do OpenAPI (.NET 10)
     app.MapOpenApi();
+
+    // 2. Mapeia a interface visual do Scalar
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("SinalVortex API")
+            .WithTheme(ScalarTheme.Moon) // Temas: Moon, Purple, Solarized, Dracula, etc.
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
 }
 
 using (var scope = app.Services.CreateScope())

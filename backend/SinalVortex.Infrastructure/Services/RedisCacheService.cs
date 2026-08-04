@@ -74,7 +74,8 @@ public class RedisCacheService : ICacheService
     {
         var db = _redis.GetDatabase();
         var json = JsonSerializer.Serialize(item);
-        await db.ListLeftPushAsync(queueName, json);
+        // Adicionamos o prefixo manualmente se quiser manter a consistência com o IDistributedCache
+        await db.ListLeftPushAsync($"SinalVortex_{queueName}", json);
     }
 
     /// <summary>
