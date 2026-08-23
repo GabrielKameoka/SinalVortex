@@ -90,7 +90,7 @@ public class RedisCacheService : ICacheService
     public async Task<T?> DequeueAsync<T>(string queueName)
     {
         var db = _redis.GetDatabase();
-        RedisValue redisValue = await db.ListRightPopAsync(queueName);
+        RedisValue redisValue = await db.ListRightPopAsync($"SinalVortex_{queueName}");
 
         if (redisValue.IsNullOrEmpty)
             return default;

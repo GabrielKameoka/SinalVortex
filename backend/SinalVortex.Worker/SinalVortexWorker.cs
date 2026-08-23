@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Common.Interfaces;
 
 namespace SinalVortex.Worker;
@@ -9,6 +10,9 @@ public class SignalProcessingWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SignalProcessingWorker> _logger;
+
+    // Chaves das filas que a API utiliza
+    private readonly string[] _filas = { "notificacoes:fila:alta", "notificacoes:fila:normal", "notificacoes:fila:baixa" };
 
     public SignalProcessingWorker(IServiceProvider serviceProvider, ILogger<SignalProcessingWorker> logger)
     {
@@ -25,18 +29,26 @@ public class SignalProcessingWorker : BackgroundService
             using (var scope = _serviceProvider.CreateScope())
             {
                 var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                bool encontrouItem = false;
 
-                // Consome da fila de sinais via Dequeue (Pop da ponta direita)
-                var sinal = await cacheService.DequeueAsync<string>("fila_sinais");
-
-                if (sinal != null)
+                // Processa respeitando a ordem de prioridade (Alta -> Normal -> Baixa)
+                foreach (var filaKey in _filas)
                 {
-                    _logger.LogInformation($"[Processando Sinal]: {sinal}");
-                    // TODO: Aqui entra a lógica de processar o sinal/alerta
+                    var item = await cacheService.DequeueAsync<NotificacaoFilaItemDto>(filaKey);
+
+                    if (item != null)
+                    {
+                        _logger.LogInformation("[Processando Notificação ID: {Id}] Canal: {Canal} | Destinatário: {Destinatario}", 
+                            item.NotificacaoId, item.Canal, item.Destinatario);
+                        
+                        // TODO: Chamar o serviço de envio do canal (E-mail/WhatsApp/SMS)
+                        encontrouItem = true;
+                        break; // Volta ao início para checar novamente a fila de prioridade Alta
+                    }
                 }
-                else
+
+                if (!encontrouItem)
                 {
-                    // Se a fila estiver vazia, aguarda 1 segundo antes de tentar novamente (evita uso de CPU em 100%)
                     await Task.Delay(1000, stoppingToken);
                 }
             }

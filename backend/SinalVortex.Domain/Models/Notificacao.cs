@@ -15,17 +15,17 @@ public class Notificacao
     public CanalNotificacao Canal { get; private set; }
     public PrioridadeNotificacao Prioridade { get; private set; }
     public StatusNotificacao Status { get; private set; }
-    public string PayloadJson { get; private set; }
+    public string Conteudo { get; private set; }
+    public string? Assunto { get; private set; }
+    public Guid? TemplateId { get; private set; }
     public int Tentativas { get; private set; }
     public int MaxTentativas { get; private set; }
     public DateTime? AgendadoPara { get; private set; }
     public DateTime? ProcessadoEm { get; private set; }
     public DateTime CriadoEm { get; private set; }
 
-    // Coleção somente leitura para encapsular modificações diretas
     public IReadOnlyCollection<LogNotificacao> Logs => _logs.AsReadOnly();
 
-    // Construtor EF Core
     private Notificacao() { }
 
     public Notificacao(
@@ -33,15 +33,17 @@ public class Notificacao
         Destinatario destinatario,
         CanalNotificacao canal,
         PrioridadeNotificacao prioridade,
-        string payloadJson,
+        string conteudo,
+        string? assunto = null,
+        Guid? templateId = null,
         int maxTentativas = 3,
         DateTime? agendadoPara = null)
     {
         if (aplicacaoId == Guid.Empty)
             throw new DomainException("AplicacaoId é obrigatório.");
 
-        if (string.IsNullOrWhiteSpace(payloadJson))
-            throw new DomainException("O payload em JSON não pode ser vazio.");
+        if (string.IsNullOrWhiteSpace(conteudo))
+            throw new DomainException("O conteúdo da notificação não pode ser vazio.");
 
         if (maxTentativas <= 0)
             throw new DomainException("MaxTentativas deve ser maior que zero.");
@@ -52,7 +54,9 @@ public class Notificacao
         Canal = canal;
         Prioridade = prioridade;
         Status = StatusNotificacao.Pendente;
-        PayloadJson = payloadJson;
+        Conteudo = conteudo;
+        Assunto = assunto;
+        TemplateId = templateId;
         Tentativas = 0;
         MaxTentativas = maxTentativas;
         AgendadoPara = agendadoPara;
