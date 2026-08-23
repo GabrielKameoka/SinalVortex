@@ -67,17 +67,15 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 8. Pipeline HTTP - Scalar API Reference no Ambiente de Desenvolvimento
-if (app.Environment.IsDevelopment())
+// 8. Pipeline HTTP - OpenAPI & Scalar API Reference
+app.MapOpenApi();
+
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("SinalVortex API")
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-}
+    options
+        .WithTitle("SinalVortex API")
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
 
 // 9. Execução de Migrations Pendentes no PostgreSQL durante o Startup
 using (var scope = app.Services.CreateScope())
