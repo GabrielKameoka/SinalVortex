@@ -6,8 +6,10 @@ using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
 
 using SinalVortex.Infrastructure.Persistence;
+using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Worker;
+using SinalVortex.Worker.Workers;
 using StackExchange.Redis;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -36,6 +38,11 @@ builder.Services.AddScoped<IHealthService, HealthService>();
 // O Worker faz o mesmo registro para conseguir executar os mesmos Handlers
 builder.Services.AddMediatR(cfg => 
     cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
+
+builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+
+builder.Services.AddHostedService<SignalProcessingWorker>();
+builder.Services.AddHostedService<LimpezaNotificacoesWorker>();
 
 // Registra o Worker para rodar como Daemon/Serviço Contínuo
 builder.Services.AddHostedService<SignalProcessingWorker>();

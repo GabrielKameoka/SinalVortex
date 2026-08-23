@@ -1,8 +1,10 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
 using SinalVortex.Infrastructure.Persistence;
+using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using StackExchange.Redis;
 
@@ -41,9 +43,16 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 
+builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+
 // 6. MediatR - Registra Handlers escaneando a marcação AssemblyReference da camada Application
+builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
+
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
+{
+    cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
+    cfg.AddOpenBehavior(typeof(SinalVortex.Application.Common.Behaviors.ValidationBehavior<,>));
+});
 
 // 7. CORS - Política para o Frontend em Angular
 builder.Services.AddCors(options =>
@@ -66,7 +75,6 @@ if (app.Environment.IsDevelopment())
     {
         options
             .WithTitle("SinalVortex API")
-            .WithTheme(ScalarTheme.Moon)
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
 }
