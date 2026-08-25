@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
@@ -10,9 +12,19 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Controllers & Documentação OpenAPI / Scalar
+// 1. Controllers & Documentação OpenAPI / Scalar (URL HTTPS explícita para evitar bloqueio de Mixed Content)
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Servers = new List<OpenApiServer>
+        {
+            new OpenApiServer { Url = "https://sinalvortex-production.up.railway.app" }
+        };
+        return Task.CompletedTask;
+    });
+});
 
 // 2. Configurações de Conexão (PostgreSQL & Redis)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -45,7 +57,7 @@ builder.Services.AddScoped<IHealthService, HealthService>();
 
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
 
-// 6. MediatR - Registra Handlers escaneando a marcação AssemblyReference da camada Application
+// 6. MediatR - Registra Handlers e Validadores escaneando a marcação AssemblyReference da camada Application
 builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
 
 builder.Services.AddMediatR(cfg =>
@@ -54,12 +66,12 @@ builder.Services.AddMediatR(cfg =>
     cfg.AddOpenBehavior(typeof(SinalVortex.Application.Common.Behaviors.ValidationBehavior<,>));
 });
 
-// 7. CORS - Política para o Frontend em Angular
+// 7. CORS - Política global para permitir requisições do Angular local e do Scalar em produção
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader();
     });
@@ -104,7 +116,9 @@ using (var scope = app.Services.CreateScope())
 
 // 10. Middlewares e Rotas
 app.UseHttpsRedirection();
-app.UseCors("AllowAngular");
+
+app.UseCors("AllowAll");
+
 app.MapControllers();
 
 app.Run();
