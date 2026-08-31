@@ -1,50 +1,77 @@
-using SinalVortex.Application.Services;
-using SinalVortex.Infrastructure.Data;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Application.Services;
+using SinalVortex.Infrastructure.Persistence;
+using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// 1. Controllers & Documentação OpenAPI / Scalar (URL HTTPS explícita para evitar bloqueio de Mixed Content)
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Servers = new List<OpenApiServer>
+        {
+            new OpenApiServer { Url = "https://sinalvortex-production.up.railway.app" }
+        };
+        return Task.CompletedTask;
+    });
+});
 
-// Configuração da String de Conexão do Redis (Suporta Local e Railway)
+// 2. Configurações de Conexão (PostgreSQL & Redis)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+
 var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection")
                             ?? "localhost:6379";
 
-// Registro do Redis no Inversion of Control (IoC)
+// 3. Banco de Dados - PostgreSQL via Entity Framework Core
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// 4. Redis - IDistributedCache + Multiplexer para Filas
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConnectionString;
     options.InstanceName = "SinalVortex_";
 });
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
-    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = ConfigurationOptions.Parse(redisConnectionString);
+    configuration.AbortOnConnectFail = false; // Garante resiliência no startup da aplicação
+    return ConnectionMultiplexer.Connect(configuration);
+});
 
-// Registra nossa Abstração do Cache
+// 5. Injeção de Serviços do Negócio e Infraestrutura
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
-
-// Register Application Services
 builder.Services.AddScoped<IHealthService, HealthService>();
 
-// Add Database Context
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString)
-);
+// 6. MediatR - Registra Handlers e Validadores escaneando a marcação AssemblyReference da camada Application
+builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
 
-// CORS configuration
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
+    cfg.AddOpenBehavior(typeof(SinalVortex.Application.Common.Behaviors.ValidationBehavior<,>));
+});
+
+// 7. CORS - Política global para permitir requisições do Angular local e do Scalar em produção
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader();
     });
@@ -52,12 +79,17 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+// 8. Pipeline HTTP - OpenAPI & Scalar API Reference
+app.MapOpenApi();
 
+app.MapScalarApiReference(options =>
+{
+    options
+        .WithTitle("SinalVortex API")
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+
+// 9. Execução de Migrations Pendentes no PostgreSQL durante o Startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -65,10 +97,9 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
 
-        // Verifica se há migrações pendentes e as aplica no banco da Railway
         if (context.Database.GetPendingMigrations().Any())
         {
-            Console.WriteLine("Aplicando migrations pendentes no banco de dados da Railway...");
+            Console.WriteLine("Aplicando migrations pendentes no banco de dados...");
             context.Database.Migrate();
             Console.WriteLine("Banco de dados atualizado com sucesso!");
         }
@@ -83,8 +114,11 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// 10. Middlewares e Rotas
 app.UseHttpsRedirection();
-app.UseCors("AllowAngular");
+
+app.UseCors("AllowAll");
+
 app.MapControllers();
 
 app.Run();

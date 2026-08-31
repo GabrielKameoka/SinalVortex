@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SinalVortex.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using SinalVortex.Infrastructure.Persistence;
 namespace SinalVortex.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260804234836_consolidandoEntidades")]
+    partial class consolidandoEntidades
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -115,21 +118,18 @@ namespace SinalVortex.Infrastructure.Migrations
                     b.Property<Guid>("AplicacaoId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Assunto")
-                        .HasColumnType("text");
-
                     b.Property<int>("Canal")
                         .HasColumnType("integer");
-
-                    b.Property<string>("Conteudo")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("MaxTentativas")
                         .HasColumnType("integer");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("Prioridade")
                         .HasColumnType("integer");
@@ -139,9 +139,6 @@ namespace SinalVortex.Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
-
-                    b.Property<Guid?>("TemplateId")
-                        .HasColumnType("uuid");
 
                     b.Property<int>("Tentativas")
                         .HasColumnType("integer");
