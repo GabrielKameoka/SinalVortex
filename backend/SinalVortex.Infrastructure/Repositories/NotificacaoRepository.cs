@@ -1,42 +1,34 @@
+namespace SinalVortex.Infrastructure.Repositories;
+
 using Microsoft.EntityFrameworkCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Models;
 using SinalVortex.Infrastructure.Persistence;
 
-namespace SinalVortex.Infrastructure.Repositories;
-
-public class NotificacaoRepository : INotificacaoRepository
+public class NotificacaoRepository(AppDbContext context) : INotificacaoRepository
 {
-    private readonly AppDbContext _context;
-
-    public NotificacaoRepository(AppDbContext context)
-    {
-        _context = context;
-    }
-
     public async Task AdicionarAsync(Notificacao notificacao, CancellationToken cancellationToken = default)
     {
-        await _context.Notificacoes.AddAsync(notificacao, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.Notificacoes.AddAsync(notificacao, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Notificacao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Notificacoes
+        return await context.Notificacoes
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
     
     public async Task AtualizarAsync(Notificacao notificacao, CancellationToken cancellationToken = default)
     {
-        _context.Notificacoes.Update(notificacao);
-        await _context.SaveChangesAsync(cancellationToken);
+        context.Notificacoes.Update(notificacao);
+        await context.SaveChangesAsync(cancellationToken);
     }
     
     public async Task<int> RemoverNotificacoesAntigasAsync(DateTime dataCorte, CancellationToken cancellationToken = default)
     {
-        // Remove diretamente do PostgreSQL as notificações já concluídas (Enviado ou Dlq) criadas há mais de 30 dias
-        return await _context.Notificacoes
+        return await context.Notificacoes
             .Where(n => n.CriadoEm < dataCorte && (n.Status == StatusNotificacao.Enviado || n.Status == StatusNotificacao.Dlq))
             .ExecuteDeleteAsync(cancellationToken);
     }
@@ -49,7 +41,7 @@ public class NotificacaoRepository : INotificacaoRepository
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.Notificacoes.AsNoTracking();
+        var query = context.Notificacoes.AsNoTracking();
 
         if (aplicacaoId.HasValue)
             query = query.Where(n => n.AplicacaoId == aplicacaoId.Value);

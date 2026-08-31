@@ -1,20 +1,14 @@
+namespace SinalVortex.Application.Queries.Notificacoes;
+
 using MediatR;
 using SinalVortex.Application.Common.Interfaces;
 
-namespace SinalVortex.Application.Queries.Notificacoes;
-
-public class ObterNotificacaoPorIdQueryHandler : IRequestHandler<ObterNotificacaoPorIdQuery, NotificacaoDetalhesDto?>
+public class ObterNotificacaoPorIdQueryHandler(INotificacaoRepository notificacaoRepository) 
+    : IRequestHandler<ObterNotificacaoPorIdQuery, NotificacaoDetalhesDto?>
 {
-    private readonly INotificacaoRepository _notificacaoRepository;
-
-    public ObterNotificacaoPorIdQueryHandler(INotificacaoRepository notificacaoRepository)
-    {
-        _notificacaoRepository = notificacaoRepository;
-    }
-
     public async Task<NotificacaoDetalhesDto?> Handle(ObterNotificacaoPorIdQuery request, CancellationToken cancellationToken)
     {
-        var notificacao = await _notificacaoRepository.ObterPorIdAsync(request.Id, cancellationToken);
+        var notificacao = await notificacaoRepository.ObterPorIdAsync(request.Id, cancellationToken);
 
         if (notificacao is null)
             return null;
