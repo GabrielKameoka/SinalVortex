@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
-
 using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
@@ -20,7 +19,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection") 
                             ?? "localhost:6379";
 
-// Injeção dos Serviços
+// Banco de Dados & Caching
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -32,20 +31,19 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
     ConnectionMultiplexer.Connect(redisConnectionString));
 
+// Registro dos Serviços da Solução
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
+builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 
-// O Worker faz o mesmo registro para conseguir executar os mesmos Handlers
+// MediatR
 builder.Services.AddMediatR(cfg => 
     cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
 
-builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
-
+// Workers em Segundo Plano (Executores de Background Tasks)
 builder.Services.AddHostedService<SignalProcessingWorker>();
 builder.Services.AddHostedService<LimpezaNotificacoesWorker>();
-
-// Registra o Worker para rodar como Daemon/Serviço Contínuo
-builder.Services.AddHostedService<SignalProcessingWorker>();
 
 var host = builder.Build();
 await host.RunAsync();
