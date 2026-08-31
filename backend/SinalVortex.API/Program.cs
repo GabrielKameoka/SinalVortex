@@ -54,8 +54,8 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // 5. Injeção de Serviços do Negócio e Infraestrutura
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
-
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+builder.Services.AddScoped<IRedisQueueService, RedisQueueService>();
 
 // 6. MediatR - Registra Handlers e Validadores escaneando a marcação AssemblyReference da camada Application
 builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);

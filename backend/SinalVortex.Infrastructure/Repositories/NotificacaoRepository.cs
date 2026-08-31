@@ -19,13 +19,13 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
         return await context.Notificacoes
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
-
+    
     public async Task AtualizarAsync(Notificacao notificacao, CancellationToken cancellationToken = default)
     {
         context.Notificacoes.Update(notificacao);
         await context.SaveChangesAsync(cancellationToken);
     }
-
+    
     public async Task<int> RemoverNotificacoesAntigasAsync(DateTime dataCorte, CancellationToken cancellationToken = default)
     {
         return await context.Notificacoes
