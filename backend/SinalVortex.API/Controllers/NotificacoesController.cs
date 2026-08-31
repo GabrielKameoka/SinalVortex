@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Queries.Notificacoes;
+using SinalVortex.Domain.Exceptions;
 
 namespace SinalVortex.API.Controllers;
 
@@ -65,5 +66,32 @@ public class NotificacoesController : ControllerBase
     {
         var resultado = await _mediator.Send(query, cancellationToken);
         return Ok(resultado);
+    }
+    
+    /// <summary>
+    /// Solicita o reprocessamento manual de uma notificação presa na DLQ.
+    /// </summary>
+    [HttpPost("{id:guid}/reprocessar")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReprocessarDlq(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var command = new ReprocessarNotificacaoDlqCommand(id);
+            var sucesso = await _mediator.Send(command, cancellationToken);
+
+            if (!sucesso)
+                return NotFound(new { Mensagem = "Notificação não encontrada." });
+
+            return Ok(new { Mensagem = "Notificação reenviada para a fila de processamento com sucesso." });
+        }
+        catch (DomainException ex)
+        {
+            return BadRequest(new { Mensagem = ex.Message });
+        }
     }
 }

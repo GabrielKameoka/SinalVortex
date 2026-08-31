@@ -27,6 +27,12 @@ public class NotificacaoRepository : INotificacaoRepository
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
     
+    public async Task AtualizarAsync(Notificacao notificacao, CancellationToken cancellationToken = default)
+    {
+        _context.Notificacoes.Update(notificacao);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+    
     public async Task<int> RemoverNotificacoesAntigasAsync(DateTime dataCorte, CancellationToken cancellationToken = default)
     {
         // Remove diretamente do PostgreSQL as notificações já concluídas (Enviado ou Dlq) criadas há mais de 30 dias
