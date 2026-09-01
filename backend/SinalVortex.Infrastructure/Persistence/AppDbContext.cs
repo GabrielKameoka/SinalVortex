@@ -18,19 +18,8 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Mapeamento direto do Value Object Destinatario
-        modelBuilder.Entity<Notificacao>(entity =>
-        {
-            entity.ComplexProperty(n => n.Destinatario, d =>
-            {
-                d.Property(p => p.Valor)
-                    .HasColumnName("Destinatario")
-                    .HasMaxLength(255)
-                    .IsRequired();
-            });
-        });
-
-        // Mantém a varredura para quaisquer outras configurações no assembly
+        // Varre o assembly atual (Infrastructure) e aplica automaticamente 
+        // todas as classes públicas que implementam IEntityTypeConfiguration<T>
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
 }
