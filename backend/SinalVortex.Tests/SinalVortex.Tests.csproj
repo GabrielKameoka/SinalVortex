@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.4" />
+        <PackageReference Include="FluentAssertions" Version="8.10.0" />
+        <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.9.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+        <PackageReference Include="Moq" Version="4.20.72" />
+        <PackageReference Include="Polly" Version="8.7.0" />
+        <PackageReference Include="xunit" Version="2.9.3" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2" />
+    </ItemGroup>
+
+    <!-- Opcional: Registrar a diretiva global diretamente no MSBuild se a IDE falhar no parse -->
+    <ItemGroup>
+        <Using Include="System.TimeProvider" Alias="TimeProvider" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SinalVortex.API\SinalVortex.API.csproj" />
+        <ProjectReference Include="..\SinalVortex.Application\SinalVortex.Application.csproj" />
+        <ProjectReference Include="..\SinalVortex.Domain\SinalVortex.Domain.csproj" />
+        <ProjectReference Include="..\SinalVortex.Infrastructure\SinalVortex.Infrastructure.csproj" />
+        <ProjectReference Include="..\SinalVortex.Worker\SinalVortex.Worker.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,13 +1,13 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
 using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
+using SinalVortex.Infrastructure.Services.Notificacoes;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,6 +56,8 @@ builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
 builder.Services.AddScoped<IRedisQueueService, RedisQueueService>();
+builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
+builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 
 // 6. MediatR - Registra Handlers e Validadores escaneando a marcação AssemblyReference da camada Application
 builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
@@ -93,24 +95,21 @@ app.MapScalarApiReference(options =>
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
 
         if (context.Database.GetPendingMigrations().Any())
         {
-            Console.WriteLine("Aplicando migrations pendentes no banco de dados...");
+            logger.LogInformation("Aplicando migrations pendentes no banco de dados...");
             context.Database.Migrate();
-            Console.WriteLine("Banco de dados atualizado com sucesso!");
-        }
-        else
-        {
-            Console.WriteLine("Nenhuma migration pendente detectada.");
+            logger.LogInformation("Banco de dados atualizado com sucesso!");
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Erro ao aplicar migrations na inicialização: {ex.Message}");
+        logger.LogError(ex, "Erro ao aplicar migrations na inicialização do banco de dados.");
     }
 }
 
