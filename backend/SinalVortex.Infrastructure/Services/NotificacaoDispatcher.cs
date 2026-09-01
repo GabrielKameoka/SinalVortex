@@ -7,50 +7,27 @@ using SinalVortex.Domain.Enums;
 
 public class NotificacaoDispatcher : INotificacaoDispatcher
 {
+    private readonly IDictionary<CanalNotificacao, INotificacaoService> _strategies;
     private readonly ILogger<NotificacaoDispatcher> _logger;
 
-    public NotificacaoDispatcher(ILogger<NotificacaoDispatcher> logger)
+    public NotificacaoDispatcher(IEnumerable<INotificacaoService> services, ILogger<NotificacaoDispatcher> logger)
     {
         _logger = logger;
+        // Mapeia em memória cada canal para sua respectiva estratégia
+        _strategies = services.ToDictionary(s => s.Canal);
     }
 
     public async Task EnviarAsync(NotificacaoFilaItemDto item, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Enviando notificação pelo canal [{Canal}] para {Destinatario}...", 
-            item.Canal, item.Destinatario);
+        _logger.LogInformation("Processando envio via Dispatcher para o canal [{Canal}]...", item.Canal);
 
-        await Task.Delay(300, cancellationToken);
-
-        if (item.Destinatario.EndsWith("@error.com", StringComparison.OrdinalIgnoreCase))
+        if (!_strategies.TryGetValue(item.Canal, out var strategy))
         {
-            throw new InvalidOperationException($"Falha de comunicação com o provedor do canal {item.Canal}.");
+            _logger.LogWarning("Nenhum provedor/estratégia configurado para o canal {Canal}.", item.Canal);
+            throw new NotSupportedException($"Canal de notificação {item.Canal} não possui suporte ativo.");
         }
 
-        switch (item.Canal)
-        {
-            case CanalNotificacao.Email:
-                _logger.LogInformation("[SinalVortex - EMAIL] Assunto: {Assunto} | Para: {Destinatario}", item.Assunto, item.Destinatario);
-                break;
-
-            case CanalNotificacao.Sms:
-                _logger.LogInformation("[SinalVortex - SMS] Para: {Destinatario} | Conteúdo: {Conteudo}", item.Destinatario, item.Conteudo);
-                break;
-
-            case CanalNotificacao.WhatsApp:
-                _logger.LogInformation("[SinalVortex - WHATSAPP] Para: {Destinatario} | Conteúdo: {Conteudo}", item.Destinatario, item.Conteudo);
-                break;
-
-            case CanalNotificacao.Webhook:
-                _logger.LogInformation("[SinalVortex - WEBHOOK] Endpoint: {Destinatario}", item.Destinatario);
-                break;
-
-            case CanalNotificacao.Push:
-                _logger.LogInformation("[SinalVortex - PUSH] Token: {Destinatario}", item.Destinatario);
-                break;
-
-            default:
-                _logger.LogWarning("Canal {Canal} sem handler configurado.", item.Canal);
-                break;
-        }
+        // Executa a estratégia concreta com Polly e resiliência embutidos
+        await strategy.EnviarAsync(item, cancellationToken);
     }
 }
