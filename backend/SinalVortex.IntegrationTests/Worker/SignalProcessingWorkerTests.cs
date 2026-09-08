@@ -1,13 +1,18 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SinalVortex.Domain.Entities;
+using SinalVortex.Domain.Enums;
+using SinalVortex.Domain.Models;
+using SinalVortex.Domain.ValueObjects;
 using SinalVortex.Infrastructure.Persistence;
 using StackExchange.Redis;
-using System.Text.Json;
 using Xunit;
 
 namespace SinalVortex.IntegrationTests.Worker;
 
-public class SignalProcessingWorkerTests : IClassFixture<CustomWebApplicationFactory>
+[Collection("IntegrationTestsCollection")]
+public class SignalProcessingWorkerTests
 {
     private readonly CustomWebApplicationFactory _factory;
 
@@ -19,47 +24,67 @@ public class SignalProcessingWorkerTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task Worker_DeveConsumirFilaDoRedis_EAtualizarStatusNoPostgreSQL()
     {
-        // 1. Arrange: Obtém os serviços do Testcontainers
-        using var scope = _factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var redis = scope.ServiceProvider.GetRequiredService<IConnectionMultiplexer>();
-        var database = redis.GetDatabase();
+        // ARRANGE: Instancia a notificação com o ValueObject Destinatario
+        var aplicacaoId = Guid.NewGuid();
+        var destinatario = Destinatario.Criar("worker@sinalvortex.com", CanalNotificacao.Email);
 
-        var notificacaoId = Guid.NewGuid();
+        var notificacao = new Notificacao(
+            aplicacaoId: aplicacaoId,
+            destinatario: destinatario,
+            canal: CanalNotificacao.Email,
+            prioridade: PrioridadeNotificacao.Alta,
+            conteudo: "Conteúdo para validação do processamento assíncrono",
+            assunto: "Teste Worker",
+            maxTentativas: 3
+        );
+        
+        // Captura o Id gerado automaticamente pela entidade
+        var notificacaoId = notificacao.Id;
 
-        // Insere notificação pendente diretamente no PostgreSQL do container
-        var sqlInsert = @"
-            INSERT INTO ""Notificacoes"" (""Id"", ""AplicacaoId"", ""Destinatario"", ""Canal"", ""Prioridade"", ""Assunto"", ""Conteudo"", ""Status"", ""CriadoEm"", ""MaxTentativas"", ""Tentativas"")
-            VALUES ({0}, {1}, 'worker@sinalvortex.com', 1, 1, 'Teste Worker', 'Conteudo Worker', 0, NOW(), 3, 0);";
-
-        await dbContext.Database.ExecuteSqlRawAsync(sqlInsert, notificacaoId, Guid.NewGuid());
-
-        var payloadFila = JsonSerializer.Serialize(new { NotificacaoId = notificacaoId });
-
-        // 2. Act: Publica a mensagem na fila do Redis que o Worker escuta
-        await database.ListLeftPushAsync("fila-notificacoes", payloadFila);
-
-        // 3. Assert: Aguarda até 5 segundos para o Worker processar em segundo plano
-        bool processado = false;
-        for (int i = 0; i < 10; i++)
+        using (var scope = _factory.Services.CreateScope())
         {
-            await Task.Delay(500);
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Notificacoes.AddAsync(notificacao);
+            await db.SaveChangesAsync();
+        }
 
-            // Recria o scope para evitar ler dados em cache do ChangeTracker
-            using var assertScope = _factory.Services.CreateScope();
-            var assertDbContext = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        // Publica o payload na fila do Redis esperada pelo BackgroundWorker
+        var redis = _factory.Services.GetRequiredService<IConnectionMultiplexer>();
+        var redisDb = redis.GetDatabase();
 
-            var notificacao = await assertDbContext.Notificacoes
+        var payload = JsonSerializer.Serialize(new
+        {
+            NotificacaoId = notificacaoId,
+            DataCriacao = DateTime.UtcNow
+        });
+
+        await redisDb.ListLeftPushAsync("fila:notificacoes", payload);
+
+        // ACT & ASSERT (Polling): Aguarda até 5 segundos para o Worker processar
+        Notificacao? notificacaoProcessada = null;
+        var tempoLimite = TimeSpan.FromSeconds(5);
+        var inicio = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - inicio < tempoLimite)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            notificacaoProcessada = await db.Notificacoes
                 .AsNoTracking()
                 .FirstOrDefaultAsync(n => n.Id == notificacaoId);
 
-            if (notificacao != null && notificacao.Status != 0) // 0 = Pendente
+            if (notificacaoProcessada != null && notificacaoProcessada.Status != StatusNotificacao.Pendente)
             {
-                processado = true;
                 break;
             }
+
+            await Task.Delay(200);
         }
 
-        Assert.True(processado, "O Worker não processou a mensagem da fila do Redis dentro do tempo limite.");
+        // Asserções Finais
+        Assert.NotNull(notificacaoProcessada);
+        Assert.NotEqual(StatusNotificacao.Pendente, notificacaoProcessada.Status);
+        Assert.True(notificacaoProcessada.Tentativas > 0);
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SinalVortex.Infrastructure.Persistence;
-using StackExchange.Redis; // Ajuste conforme seu namespace
+using StackExchange.Redis;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
 using Xunit;
@@ -26,27 +26,34 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
     public async Task InitializeAsync()
     {
-        // 1. Inicia os containers primeiro
+        // 1. Inicia os contêineres do Testcontainers
         await _postgresContainer.StartAsync();
         await _redisContainer.StartAsync();
+
+        // 2. Aplica as Migrations uma única vez no container efêmero
+        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+        optionsBuilder.UseNpgsql(_postgresContainer.GetConnectionString());
+
+        using var context = new AppDbContext(optionsBuilder.Options);
+        await context.Database.MigrateAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
-            // 2. Remove o DbContext existente registrado pelo Program.cs
+            // 3. Substitui o DbContext do app pelo contexto apontando para a porta dinâmica do PostgreSQL
             services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
-
-            // 3. Adiciona o DbContext utilizando a string de conexão DINÂMICA do Testcontainers
             services.AddDbContext<AppDbContext>(options =>
             {
                 options.UseNpgsql(_postgresContainer.GetConnectionString());
             });
 
-            // 4. (Opcional) Sobrescreve a configuração do Redis caso utilize IDistributedCache ou StackExchange.Redis
+            // 4. Substitui a conexão do Redis apontando para a porta dinâmica do RedisContainer
             services.RemoveAll(typeof(IConnectionMultiplexer));
-            services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(_redisContainer.GetConnectionString()));
+            services.AddSingleton<IConnectionMultiplexer>(
+                ConnectionMultiplexer.Connect(_redisContainer.GetConnectionString())
+            );
         });
     }
 
@@ -55,4 +62,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         await _postgresContainer.StopAsync();
         await _redisContainer.StopAsync();
     }
+}
+
+// Collection Definition para garantir execução sequencial dos testes de integração no xUnit
+[CollectionDefinition("IntegrationTestsCollection")]
+public class IntegrationTestCollection : ICollectionFixture<CustomWebApplicationFactory>
+{
 }
