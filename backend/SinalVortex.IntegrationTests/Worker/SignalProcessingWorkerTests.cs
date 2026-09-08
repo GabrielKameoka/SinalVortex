@@ -49,9 +49,15 @@ public class SignalProcessingWorkerTests
             await db.SaveChangesAsync();
         }
 
-        // Publica o payload na fila do Redis esperada pelo BackgroundWorker
+        // Publica o payload na fila do Redis
         var redis = _factory.Services.GetRequiredService<IConnectionMultiplexer>();
         var redisDb = redis.GetDatabase();
+
+        // Serialização com suporte a Naming Policy e campos extras para compatibilidade de DTO
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
         var payload = JsonSerializer.Serialize(new
         {

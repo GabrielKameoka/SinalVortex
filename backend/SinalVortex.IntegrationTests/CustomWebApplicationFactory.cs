@@ -40,24 +40,28 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Sobrescreve as ConnectionStrings diretamente no IConfiguration da aplicação
-        builder.UseSetting("ConnectionStrings:PostgreSQL", _postgresContainer.GetConnectionString());
-        builder.UseSetting("ConnectionStrings:Redis", _redisContainer.GetConnectionString());
+        var redisConn = _redisContainer.GetConnectionString();
+        var postgresConn = _postgresContainer.GetConnectionString();
+
+        // Sobrescreve as configurações de ambiente
+        builder.UseSetting("ConnectionStrings:PostgreSQL", postgresConn);
+        builder.UseSetting("ConnectionStrings:Redis", redisConn);
+        builder.UseSetting("Redis", redisConn);
+        builder.UseSetting("Redis:ConnectionString", redisConn);
 
         builder.ConfigureServices(services =>
         {
-            // 3. Substitui o DbContext do app
+            // 3. Substitui DbContext
             services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
             services.AddDbContext<AppDbContext>(options =>
             {
-                options.UseNpgsql(_postgresContainer.GetConnectionString());
+                options.UseNpgsql(postgresConn);
             });
 
-            // 4. Substitui o Singleton do IConnectionMultiplexer
+            // 4. Substitui IConnectionMultiplexer
             services.RemoveAll(typeof(IConnectionMultiplexer));
-            services.AddSingleton<IConnectionMultiplexer>(
-                ConnectionMultiplexer.Connect(_redisContainer.GetConnectionString())
-            );
+            var multiplexer = ConnectionMultiplexer.Connect(redisConn);
+            services.AddSingleton<IConnectionMultiplexer>(multiplexer);
         });
     }
 
