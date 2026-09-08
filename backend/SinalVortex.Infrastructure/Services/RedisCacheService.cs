@@ -74,8 +74,7 @@ public class RedisCacheService : ICacheService
     {
         var db = _redis.GetDatabase();
         var json = JsonSerializer.Serialize(item);
-        // Adicionamos o prefixo manualmente se quiser manter a consistência com o IDistributedCache
-        await db.ListLeftPushAsync($"SinalVortex_{queueName}", json);
+        await db.ListLeftPushAsync(queueName, json);
     }
 
     /// <summary>
@@ -90,7 +89,7 @@ public class RedisCacheService : ICacheService
     public async Task<T?> DequeueAsync<T>(string queueName)
     {
         var db = _redis.GetDatabase();
-        RedisValue redisValue = await db.ListRightPopAsync($"SinalVortex_{queueName}");
+        RedisValue redisValue = await db.ListRightPopAsync(queueName);
 
         if (redisValue.IsNullOrEmpty)
             return default;

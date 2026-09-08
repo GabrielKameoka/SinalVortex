@@ -9,6 +9,30 @@ on:
 jobs:
   backend-ci:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sinalvortex
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +41,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+          include-prerelease: true
 
       - name: Restore dependencies
         run: dotnet restore
@@ -29,3 +54,7 @@ jobs:
       - name: Run tests
         run: dotnet test --no-build --configuration Release --verbosity normal
         working-directory: ./backend
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=5432;Database=sinalvortex;User Id=postgres;Password=postgres;"
+          REDIS_CONNECTION: "localhost:6379"

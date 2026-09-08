@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/SinalVortex.Tests/">
+    <Project Path="SinalVortex.IntegrationTests/SinalVortex.IntegrationTests.csproj" />
+  </Folder>
   <Project Path="SinalVortex.API/SinalVortex.API.csproj" />
   <Project Path="SinalVortex.Application/SinalVortex.Application.csproj" />
   <Project Path="SinalVortex.Domain/SinalVortex.Domain.csproj" />
