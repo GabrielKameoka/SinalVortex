@@ -13,7 +13,7 @@ using SinalVortex.Infrastructure.Persistence;
 namespace SinalVortex.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260908221845_AjustesNotificacao")]
+    [Migration("20260908224806_AjustesNotificacao")]
     partial class AjustesNotificacao
     {
         /// <inheritdoc />
