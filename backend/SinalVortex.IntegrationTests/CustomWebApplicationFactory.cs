@@ -54,27 +54,24 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
         builder.ConfigureServices(services =>
         {
-            // 3. Substitui DbContext
-            services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
-            services.AddDbContext<AppDbContext>(options =>
-            {
-                options.UseNpgsql(postgresConn);
-            });
+            // Remove qualquer registro anterior de INotificacaoService
+            services.RemoveAll(typeof(INotificacaoService));
 
-            // 4. Substitui IConnectionMultiplexer
-            services.RemoveAll(typeof(IConnectionMultiplexer));
-            var multiplexer = ConnectionMultiplexer.Connect(redisConn);
-            services.AddSingleton<IConnectionMultiplexer>(multiplexer);
-
-            // 5. REGISTRO DOS WORKERS E SERVIÇOS AUXILIARES PARA O TESTE DE INTEGRAÇÃO
-            services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
+            // Registra apenas uma vez cada implementação
             services.AddScoped<INotificacaoService, EmailNotificacaoService>();
             services.AddScoped<INotificacaoService, SmsNotificacaoService>();
             services.AddScoped<INotificacaoService, PushNotificacaoService>();
+
             services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 
+            // REGISTRA O DISPATCHER
+            services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
+
+            // Worker
             services.AddHostedService<SignalProcessingWorker>();
         });
+
+
     }
 
     public new async Task DisposeAsync()
