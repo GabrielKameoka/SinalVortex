@@ -40,16 +40,20 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Sobrescreve as ConnectionStrings diretamente no IConfiguration da aplicação
+        builder.UseSetting("ConnectionStrings:PostgreSQL", _postgresContainer.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:Redis", _redisContainer.GetConnectionString());
+
         builder.ConfigureServices(services =>
         {
-            // 3. Substitui o DbContext do app pelo contexto apontando para a porta dinâmica do PostgreSQL
+            // 3. Substitui o DbContext do app
             services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
             services.AddDbContext<AppDbContext>(options =>
             {
                 options.UseNpgsql(_postgresContainer.GetConnectionString());
             });
 
-            // 4. Substitui a conexão do Redis apontando para a porta dinâmica do RedisContainer
+            // 4. Substitui o Singleton do IConnectionMultiplexer
             services.RemoveAll(typeof(IConnectionMultiplexer));
             services.AddSingleton<IConnectionMultiplexer>(
                 ConnectionMultiplexer.Connect(_redisContainer.GetConnectionString())

@@ -19,6 +19,7 @@ public class SignalProcessingWorkerTests
     public SignalProcessingWorkerTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
+        _factory.CreateClient();
     }
 
     [Fact]
