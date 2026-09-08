@@ -3,7 +3,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Infrastructure.Persistence;
+using SinalVortex.Infrastructure.Services;
+using SinalVortex.Infrastructure.Services.Notificacoes;
+using SinalVortex.Worker;
 using StackExchange.Redis;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -43,7 +47,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         var redisConn = _redisContainer.GetConnectionString();
         var postgresConn = _postgresContainer.GetConnectionString();
 
-        // Sobrescreve as configurações de ambiente
         builder.UseSetting("ConnectionStrings:PostgreSQL", postgresConn);
         builder.UseSetting("ConnectionStrings:Redis", redisConn);
         builder.UseSetting("Redis", redisConn);
@@ -62,6 +65,15 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll(typeof(IConnectionMultiplexer));
             var multiplexer = ConnectionMultiplexer.Connect(redisConn);
             services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+
+            // 5. REGISTRO DOS WORKERS E SERVIÇOS AUXILIARES PARA O TESTE DE INTEGRAÇÃO
+            services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
+            services.AddScoped<INotificacaoService, EmailNotificacaoService>();
+            services.AddScoped<INotificacaoService, SmsNotificacaoService>();
+            services.AddScoped<INotificacaoService, PushNotificacaoService>();
+            services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
+
+            services.AddHostedService<SignalProcessingWorker>();
         });
     }
 

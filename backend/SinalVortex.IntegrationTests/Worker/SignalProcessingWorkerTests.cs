@@ -65,7 +65,7 @@ public class SignalProcessingWorkerTests
             DataCriacao = DateTime.UtcNow
         });
 
-        await redisDb.ListLeftPushAsync("fila:notificacoes", payload);
+        await redisDb.ListLeftPushAsync("notificacoes:fila:alta", payload);
 
         // ACT & ASSERT (Polling): Aguarda até 5 segundos para o Worker processar
         Notificacao? notificacaoProcessada = null;
