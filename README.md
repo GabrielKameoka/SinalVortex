@@ -1,153 +1,56 @@
 # SinalVortex - Monorepo
 
-Um monorepo completo com backend em .NET 10 e frontend em Angular 17.
+Pataforma de alto desempenho para processamento e despacho assíncrono de notificações multicanal (Email, SMS, Push, Webhook) com gerenciamento de filas por prioridade, retentativas exponenciais, DLQ e telemetria.
+
+![CI Build](https://github.com/GabrielKameoka/SinalVortex/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)
+![Angular 17](https://img.shields.io/badge/Angular-17-red.svg)
 
 ## 📋 Estrutura do Projeto
 
 ```
 SinalVortex/
 ├── backend/
-│   ├── SinalVortex.Domain/          # Entidades de domínio
-│   ├── SinalVortex.Application/     # Serviços e lógica de aplicação
-│   ├── SinalVortex.Infrastructure/  # EF Core, DbContext e repositórios
-│   ├── SinalVortex.API/             # Web API ASP.NET Core
-│   ├── SinalVortex.Worker/          # Aplicação console para processamento
-│   └── SinalVortex.slnx             # Solution file
-└── frontend/
-    └── app/                          # Aplicação Angular 17
-        ├── src/
-        ├── angular.json
-        └── package.json
+│   ├── SinalVortex.Domain/          # Entidades de domínio rico e Value Objects
+│   ├── SinalVortex.Application/     # Command/Query Handlers (MediatR) e DTOs
+│   ├── SinalVortex.Infrastructure/  # EF Core, Redis, Repositórios e Polly
+│   ├── SinalVortex.API/             # Web API RESTful (ASP.NET Core / Scalar)
+│   ├── SinalVortex.Worker/          # Background Worker (Consumidor de Filas)
+│   ├── SinalVortex.IntegrationTests/# Testes de Integração com Testcontainers
+│   └── SinalVortex.slnx             # Solution do C#
+└── frontend/app/                    # Interface de Administração (Angular 17)
 ```
 
-## 🚀 Requisitos
+## ⚙️ Tech Stack
+- **.NET 10** (API + Worker)
+- **PostgreSQL** 16 (persistência)
+- **Redis 7** (filas e cache)
+- **Angular 17** (frontend/admin UI)
+- **Testcontainers** (integração e testes efêmeros)
+- **OpenTelemetry** (telemetria e métricas)
 
-- **.NET 10** SDK
-- **Node.js** 18+ com npm
-- **PostgreSQL** 12+ (para o banco de dados)
-
-## 🔧 Configuração
-
-### Backend
-
-1. Navegue para o diretório backend:
-```bash
-cd backend
+## 🏗️ Arquitetura e Decisões Técnicas
+A aplicação adota Clean Architecture e CQRS desacoplando a recepção das notificações (API) do envio real ao provedor (Worker).
 ```
-
-2. Restaure as dependências:
-```bash
-dotnet restore
+[ Frontend Angular ] ──> [ API REST (.NET 10) ] ──> [ PostgreSQL (Persistência) ]
+                                 │
+                         (Enqueue Payload)
+                                 ▼
+                         [ Redis Queues ]
+                                 │
+                         (Dequeue/Process)
+                                 ▼
+                     [ SignalProcessingWorker ] ──> [ INotificacaoDispatcher ]
 ```
+### Principais Decisões
+- **EF Core + PostgreSQL**: Utilizado para persistência relacional auditável das notificações, logs de transição de status e gerenciamento de aplicações.
+- **Redis**: Utilizado para mensageria FIFO em memória de baixa latência (separada por prioridades: Alta, Normal, Baixa e DLQ) e cache distribuído de dados de leitura frequente.
+- **MediatR**: Garante desacoplamento na camada de aplicação, facilitando a inclusão de Pipeline Behaviors globais (Validação com FluentValidation e Log de Performance).
 
-3. Configure a conexão com PostgreSQL no arquivo `SinalVortex.API/appsettings.json`:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres"
-  }
-}
-```
-
-4. Execute as migrations (quando necessário):
-```bash
-dotnet ef database update -p SinalVortex.Infrastructure -s SinalVortex.API
-```
-
-### Frontend
-
-1. Navegue para o diretório frontend:
-```bash
-cd frontend/app
-```
-
-2. Instale as dependências:
-```bash
-npm install
-```
-
-## ▶️ Executando a Aplicação
-
-### Backend - API
-
-```bash
-cd backend
-dotnet run --project SinalVortex.API/SinalVortex.API.csproj
-```
-
-A API estará disponível em: `https://localhost:5001`
-
-### Backend - Worker
-
-```bash
-cd backend
-dotnet run --project SinalVortex.Worker/SinalVortex.Worker.csproj
-```
-
-### Frontend
-
-```bash
-cd frontend/app
-npm start
-```
-
-Ou use ng serve:
-```bash
-ng serve --open
-```
-
-A aplicação estará disponível em: `http://localhost:4200`
-
-## 📡 Endpoints Disponíveis
-
-### Health Check
-- **GET** `/api/health` - Verifica o status da API
-
-## 🏗️ Arquitetura
-
-O backend segue o padrão de **Clean Architecture**:
-
-- **Domain**: Contém as entidades e interfaces principais
-- **Application**: Serviços de negócio e DTOs
-- **Infrastructure**: Implementações de persistência com Entity Framework Core
-- **API**: Controllers e configuração da API REST
-- **Worker**: Aplicação para processamento em background
-
-## 🗄️ Banco de Dados
-
-O projeto usa PostgreSQL com Entity Framework Core. A string de conexão pode ser configurada em:
-- `SinalVortex.API/appsettings.json` (para a API)
-- `SinalVortex.Worker/appsettings.json` (para o Worker)
-
-## 📦 Dependências Principais
-
-### Backend
-- ASP.NET Core Web API
-- Entity Framework Core 10.0
-- Npgsql (PostgreSQL provider)
-
-### Frontend
-- Angular 17
-- Angular HTTP Client
-- SCSS para estilos
-
-## 🔗 Integração Frontend-Backend
-
-O frontend Angular se comunica com o backend através de HTTP. A URL base da API está configurada no arquivo `HealthService`:
-
-```typescript
-private apiUrl = 'http://localhost:5000/api/health';
-```
-
-## 📝 Próximos Passos
-
-1. Implementar entidades do domínio
-2. Criar repositórios e services
-3. Desenvolver endpoints adicionais
-4. Criar componentes Angular conforme necessário
-5. Implementar autenticação e autorização
-6. Adicionar validação e tratamento de erros
-
-## 📄 Licença
-
-[Adicione sua licença aqui]
+## 🛡️ Licença e Contato
+Distribuído sob a licença MIT. Veja LICENSE para mais informações.
+- Autor: Gabriel Mitsuru Kameoka Namazu
+- GitHub: [Gabriel Kameoka](https://github.com/GabrielKameoka)
+- LinkedIn: [gabrielkameoka.in](https://www.linkedin.com/in/gabriel-mitsuru/)
+- E-mail: gabrielkameoka@gmail.com
