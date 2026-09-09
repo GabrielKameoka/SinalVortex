@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Common.Interfaces;
 using StackExchange.Redis;
 
@@ -13,26 +14,32 @@ public class RedisCacheService : ICacheService
 {
     private readonly IDistributedCache _distributedCache;
     private readonly IConnectionMultiplexer _redis;
+    private readonly ILogger<RedisCacheService> _logger;
 
     /// <param name="distributedCache">Provedor de cache distribuído nativo do .NET (IDistributedCache).</param>
     /// <param name="redis">Gerenciador de conexões multiplexadas com o servidor Redis (StackExchange.Redis).</param>
-    public RedisCacheService(IDistributedCache distributedCache, IConnectionMultiplexer redis)
+    /// <param name="logger">Serviço de logging para registro de exceções e eventos da infraestrutura.</param>
+    public RedisCacheService(
+        IDistributedCache distributedCache, 
+        IConnectionMultiplexer redis,
+        ILogger<RedisCacheService> logger)
     {
         _distributedCache = distributedCache;
         _redis = redis;
+        _logger = logger;
     }
 
     /// <summary>
     /// Armazena um objeto no cache do Redis de forma assíncrona com um tempo de expiração definido.
     /// O objeto é serializado no formato JSON antes do armazenamento.
     /// </summary>
-    /// /// <typeparam name="T">O tipo do objeto a ser armazenado no cache.</typeparam>
+    /// <typeparam name="T">O tipo do objeto a ser armazenado no cache.</typeparam>
     /// <param name="key">A chave única que identifica o registro no Redis.</param>
     /// <param name="value">A instância do objeto a ser persistida no cache.</param>
     /// <param name="expiration">Tempo de vida limite do registro (TTL). Se não informado, o padrão é 60 minutos.</param>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
-        var options = new DistributedCacheEntryOptions // Tempo se expiração que garante que o dado não fique armazenado eternamente na memória
+        var options = new DistributedCacheEntryOptions // Tempo de expiração que garante que o dado não fique armazenado eternamente na memória
         {
             AbsoluteExpirationRelativeToNow = expiration ?? TimeSpan.FromMinutes(60)
         };
@@ -50,7 +57,8 @@ public class RedisCacheService : ICacheService
     /// Retorna o objeto desserializado do tipo <typeparamref name="T"/> caso a chave exista e esteja válida; 
     /// caso contrário, retorna <c>null</c>.
     /// </returns>
-    public async Task<T?> GetAsync<T>(string key){
+    public async Task<T?> GetAsync<T>(string key)
+    {
         var json = await _distributedCache.GetStringAsync(key);
         if (string.IsNullOrEmpty(json))
             return default;
@@ -89,11 +97,22 @@ public class RedisCacheService : ICacheService
     public async Task<T?> DequeueAsync<T>(string queueName)
     {
         var db = _redis.GetDatabase();
-        RedisValue redisValue = await db.ListRightPopAsync(queueName);
+        var value = await db.ListRightPopAsync(queueName);
 
-        if (redisValue.IsNullOrEmpty)
+        if (value.IsNullOrEmpty)
             return default;
 
-        return JsonSerializer.Deserialize<T>(redisValue.ToString()!);
+        try
+        {
+            // Converter explicitamente o RedisValue para string resolve a ambiguidade
+            string jsonString = value.ToString();
+            return JsonSerializer.Deserialize<T>(jsonString);
+        }
+        catch (JsonException ex)
+        {
+            // Loga a falha de desserialização sem derrubar o Worker
+            _logger.LogError(ex, "Erro ao desserializar mensagem da fila {QueueName}: {Value}", queueName, value.ToString());
+            return default;
+        }
     }
 }

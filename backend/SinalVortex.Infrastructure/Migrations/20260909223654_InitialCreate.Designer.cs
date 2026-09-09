@@ -13,8 +13,8 @@ using SinalVortex.Infrastructure.Persistence;
 namespace SinalVortex.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260908224806_AjustesNotificacao")]
-    partial class AjustesNotificacao
+    [Migration("20260909223654_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -7,14 +7,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SinalVortex.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class consolidandoEntidades : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "BaseEntities");
-
             migrationBuilder.CreateTable(
                 name: "Aplicacoes",
                 columns: table => new
@@ -23,7 +20,9 @@ namespace SinalVortex.Infrastructure.Migrations
                     Nome = table.Column<string>(type: "text", nullable: false),
                     ApiKeyHash = table.Column<string>(type: "text", nullable: false),
                     Ativo = table.Column<bool>(type: "boolean", nullable: false),
-                    CriadoEm = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CriadoEm = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -39,7 +38,9 @@ namespace SinalVortex.Infrastructure.Migrations
                     Canal = table.Column<int>(type: "integer", nullable: false),
                     Prioridade = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    PayloadJson = table.Column<string>(type: "text", nullable: false),
+                    Conteudo = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
+                    Assunto = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    TemplateId = table.Column<Guid>(type: "uuid", nullable: true),
                     Tentativas = table.Column<int>(type: "integer", nullable: false),
                     MaxTentativas = table.Column<int>(type: "integer", nullable: false),
                     AgendadoPara = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -76,7 +77,7 @@ namespace SinalVortex.Infrastructure.Migrations
                     NotificacaoId = table.Column<Guid>(type: "uuid", nullable: false),
                     StatusAnterior = table.Column<int>(type: "integer", nullable: false),
                     NovoStatus = table.Column<int>(type: "integer", nullable: false),
-                    MensagemErro = table.Column<string>(type: "text", nullable: true),
+                    MensagemErro = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
                     CriadoEm = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -94,6 +95,21 @@ namespace SinalVortex.Infrastructure.Migrations
                 name: "IX_LogsNotificacoes_NotificacaoId",
                 table: "LogsNotificacoes",
                 column: "NotificacaoId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notificacoes_AplicacaoId",
+                table: "Notificacoes",
+                column: "AplicacaoId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notificacoes_CriadoEm",
+                table: "Notificacoes",
+                column: "CriadoEm");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notificacoes_Status",
+                table: "Notificacoes",
+                column: "Status");
         }
 
         /// <inheritdoc />
@@ -110,19 +126,6 @@ namespace SinalVortex.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Notificacoes");
-
-            migrationBuilder.CreateTable(
-                name: "BaseEntities",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_BaseEntities", x => x.Id);
-                });
         }
     }
 }
