@@ -1,5 +1,6 @@
 using MediatR;
 using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Exceptions;
 
 namespace SinalVortex.Application.Commands.Notificacoes;
@@ -22,22 +23,20 @@ public class ReprocessarNotificacaoDlqCommandHandler : IRequestHandler<Reprocess
     public async Task<bool> Handle(ReprocessarNotificacaoDlqCommand request, CancellationToken cancellationToken)
     {
         var notificacao = await _notificacaoRepository.ObterPorIdAsync(request.Id, cancellationToken);
-
         if (notificacao is null)
             return false;
 
-        // Executa a regra de negócio do Domínio Rico (Valida se é DLQ, reseta tentativas para 0 e altera Status para Pendente)
-        notificacao.ReprocessarAposDlq();
+        // Se estiver em DLQ, aplica regra de reset
+        if (notificacao.Status == StatusNotificacao.Dlq)
+        {
+            notificacao.ReprocessarAposDlq();
+            await _notificacaoRepository.AtualizarAsync(notificacao, cancellationToken);
+        }
 
-        // 1. Atualiza no PostgreSQL (Persiste o status Pendente e o novo LogNotificacao)
-        await _notificacaoRepository.AtualizarAsync(notificacao, cancellationToken);
-
-        // 2. Re-enfileira na Fila Redis de acordo com a prioridade da Notificação (Alta, Normal, Baixa)
-        await _redisQueueService.EnfileirarNotificacaoAsync(
-            notificacao.Id,
-            notificacao.Prioridade,
-            cancellationToken);
+        // Sempre re-enfileira, independente do status
+        await _redisQueueService.EnfileirarNotificacaoAsync(notificacao.Id, notificacao.Prioridade, cancellationToken);
 
         return true;
     }
+
 }

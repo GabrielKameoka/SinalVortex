@@ -2,7 +2,7 @@ using SinalVortex.Domain.Exceptions;
 
 namespace SinalVortex.Domain.Models;
 
-public class Aplicacoes
+public class Aplicacoes : BaseEntity
 {
     public Guid Id { get; private set; }
     public string Nome { get; private set; }

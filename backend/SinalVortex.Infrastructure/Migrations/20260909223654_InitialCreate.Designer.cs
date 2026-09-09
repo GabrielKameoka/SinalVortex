@@ -13,8 +13,8 @@ using SinalVortex.Infrastructure.Persistence;
 namespace SinalVortex.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260804234836_consolidandoEntidades")]
-    partial class consolidandoEntidades
+    [Migration("20260909223654_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -38,7 +38,8 @@ namespace SinalVortex.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("MensagemErro")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("NotificacaoId")
                         .HasColumnType("uuid");
@@ -53,7 +54,7 @@ namespace SinalVortex.Infrastructure.Migrations
 
                     b.HasIndex("NotificacaoId");
 
-                    b.ToTable("LogsNotificacoes");
+                    b.ToTable("LogsNotificacoes", (string)null);
                 });
 
             modelBuilder.Entity("SinalVortex.Domain.Entities.Template", b =>
@@ -94,12 +95,18 @@ namespace SinalVortex.Infrastructure.Migrations
                     b.Property<bool>("Ativo")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -118,18 +125,23 @@ namespace SinalVortex.Infrastructure.Migrations
                     b.Property<Guid>("AplicacaoId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Assunto")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<int>("Canal")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Conteudo")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("MaxTentativas")
                         .HasColumnType("integer");
-
-                    b.Property<string>("PayloadJson")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<int>("Prioridade")
                         .HasColumnType("integer");
@@ -139,6 +151,9 @@ namespace SinalVortex.Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Tentativas")
                         .HasColumnType("integer");
@@ -156,7 +171,13 @@ namespace SinalVortex.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Notificacoes");
+                    b.HasIndex("AplicacaoId");
+
+                    b.HasIndex("CriadoEm");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Notificacoes", (string)null);
                 });
 
             modelBuilder.Entity("SinalVortex.Domain.Entities.LogNotificacao", b =>
