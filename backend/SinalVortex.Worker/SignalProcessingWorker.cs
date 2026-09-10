@@ -19,23 +19,25 @@ public class SignalProcessingWorker(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var scope = serviceProvider.CreateScope();
-            
-            var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<INotificacaoDispatcher>();
-            var repository = scope.ServiceProvider.GetRequiredService<INotificacaoRepository>();
-
             bool encontrouItem = false;
 
             foreach (var filaKey in _filas)
             {
+                // Resolve as dependências apenas quando precisa processar um item
+                using var scope = serviceProvider.CreateScope();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+
                 var item = await cacheService.DequeueAsync<NotificacaoFilaItemDto>(filaKey);
 
                 if (item != null)
                 {
                     encontrouItem = true;
+                    
+                    var dispatcher = scope.ServiceProvider.GetRequiredService<INotificacaoDispatcher>();
+                    var repository = scope.ServiceProvider.GetRequiredService<INotificacaoRepository>();
+
                     await ProcessarItemAsync(item, filaKey, cacheService, dispatcher, repository, stoppingToken);
-                    break;
+                    break; // Mantém a prioridade da fila alta voltando ao topo do loop
                 }
             }
 
@@ -92,11 +94,11 @@ public class SignalProcessingWorker(
                 }
                 else
                 {
-                    var segundosEspera = Math.Pow(2, notificacao.Tentativas);
-                    logger.LogWarning("[Retry Engine] Aguardando {Segundos}s para re-enfileirar a Notificação ID {Id}...", 
-                        segundosEspera, item.NotificacaoId);
+                    // Re-enfileiramento imediato para não bloquear a thread do Worker.
+                    // O controle de estado/tentativas já foi atualizado na entidade via repositório.
+                    logger.LogWarning("[Retry Engine] Devolvendo Notificação ID {Id} para a fila {Fila} (Tentativa {Tentativa})...", 
+                        item.NotificacaoId, filaOrigemKey, notificacao.Tentativas);
 
-                    await Task.Delay(TimeSpan.FromSeconds(segundosEspera), cancellationToken);
                     await cacheService.EnqueueAsync(filaOrigemKey, item);
                 }
             }
