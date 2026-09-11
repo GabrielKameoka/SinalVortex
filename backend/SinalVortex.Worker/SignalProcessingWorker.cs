@@ -1,10 +1,12 @@
 namespace SinalVortex.Worker;
 
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Infrastructure.Telemetry;
 
 public class SignalProcessingWorker(
     IServiceProvider serviceProvider, 
@@ -23,7 +25,6 @@ public class SignalProcessingWorker(
 
             foreach (var filaKey in _filas)
             {
-                // Resolve as dependências apenas quando precisa processar um item
                 using var scope = serviceProvider.CreateScope();
                 var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
 
@@ -37,7 +38,7 @@ public class SignalProcessingWorker(
                     var repository = scope.ServiceProvider.GetRequiredService<INotificacaoRepository>();
 
                     await ProcessarItemAsync(item, filaKey, cacheService, dispatcher, repository, stoppingToken);
-                    break; // Mantém a prioridade da fila alta voltando ao topo do loop
+                    break;
                 }
             }
 
@@ -59,6 +60,7 @@ public class SignalProcessingWorker(
         logger.LogInformation("[Processando ID: {Id}] Canal: {Canal}", item.NotificacaoId, item.Canal);
 
         var notificacao = await repository.ObterPorIdAsync(item.NotificacaoId, cancellationToken);
+        var stopwatch = Stopwatch.StartNew();
 
         try
         {
@@ -76,10 +78,20 @@ public class SignalProcessingWorker(
                 await repository.AtualizarAsync(notificacao, cancellationToken);
             }
 
-            logger.LogInformation("[Sucesso] Notificação ID {Id} enviada.", item.NotificacaoId);
+            stopwatch.Stop();
+            
+            SinalVortexMetrics.NotificacoesProcessadas.Add(1, new KeyValuePair<string, object?>("canal", item.Canal.ToString()));
+            SinalVortexMetrics.TempoProcessamentoMs.Record(stopwatch.ElapsedMilliseconds);
+
+            logger.LogInformation("[Sucesso] Notificação ID {Id} enviada em {Ms}ms.", item.NotificacaoId, stopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
+
+            SinalVortexMetrics.NotificacoesFalhas.Add(1, new KeyValuePair<string, object?>("canal", item.Canal.ToString()));
+            SinalVortexMetrics.TempoProcessamentoMs.Record(stopwatch.ElapsedMilliseconds);
+
             logger.LogError(ex, "[Falha] Erro no processamento da Notificação ID {Id}.", item.NotificacaoId);
 
             if (notificacao != null)
@@ -94,8 +106,6 @@ public class SignalProcessingWorker(
                 }
                 else
                 {
-                    // Re-enfileiramento imediato para não bloquear a thread do Worker.
-                    // O controle de estado/tentativas já foi atualizado na entidade via repositório.
                     logger.LogWarning("[Retry Engine] Devolvendo Notificação ID {Id} para a fila {Fila} (Tentativa {Tentativa})...", 
                         item.NotificacaoId, filaOrigemKey, notificacao.Tentativas);
 

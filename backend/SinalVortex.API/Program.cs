@@ -4,6 +4,7 @@ using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
+using SinalVortex.Infrastructure.Health;
 using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
@@ -12,7 +13,7 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Controllers & Documentação OpenAPI / Scalar (URL HTTPS explícita para evitar bloqueio de Mixed Content)
+// 1. Controllers & Documentação OpenAPI / Scalar
 builder.Services.AddControllers();
 builder.Services.AddOpenApi(options =>
 {
@@ -26,18 +27,22 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-// 2. Configurações de Conexão (PostgreSQL & Redis)
+// 2. Health Check
+builder.Services.AddHealthChecks()
+    .AddCheck<SinalVortexHealthCheck>("infra_health_check");
+
+// 3. Configurações de Conexão (PostgreSQL & Redis)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                        ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
 
 var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection")
                             ?? "localhost:6379";
 
-// 3. Banco de Dados - PostgreSQL via Entity Framework Core
+// 4. Banco de Dados - PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// 4. Redis - IDistributedCache + Multiplexer para Filas
+// 5. Redis
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConnectionString;
@@ -47,11 +52,11 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = ConfigurationOptions.Parse(redisConnectionString);
-    configuration.AbortOnConnectFail = false; // Garante resiliência no startup da aplicação
+    configuration.AbortOnConnectFail = false;
     return ConnectionMultiplexer.Connect(configuration);
 });
 
-// 5. Injeção de Serviços do Negócio e Infraestrutura
+// 6. Injeção de Serviços
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
@@ -59,7 +64,7 @@ builder.Services.AddScoped<IRedisQueueService, RedisQueueService>();
 builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 
-// 6. MediatR - Registra Handlers e Validadores escaneando a marcação AssemblyReference da camada Application
+// 7. MediatR
 builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
 
 builder.Services.AddMediatR(cfg =>
@@ -68,7 +73,7 @@ builder.Services.AddMediatR(cfg =>
     cfg.AddOpenBehavior(typeof(SinalVortex.Application.Common.Behaviors.ValidationBehavior<,>));
 });
 
-// 7. CORS - Política global para permitir requisições do Angular local e do Scalar em produção
+// 8. CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -81,7 +86,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 8. Pipeline HTTP - OpenAPI & Scalar API Reference
+// 9. Pipeline HTTP
 app.MapOpenApi();
 
 app.MapScalarApiReference(options =>
@@ -91,7 +96,9 @@ app.MapScalarApiReference(options =>
         .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
 
-// 9. Execução de Migrations Pendentes no PostgreSQL durante o Startup
+app.MapHealthChecks("/health");
+
+// 10. Execução de Migrations Pendentes
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -113,11 +120,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 10. Middlewares e Rotas
+// 11. Middlewares e Rotas
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
-
 app.MapControllers();
 
 app.Run();
