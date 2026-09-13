@@ -1,6 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
@@ -21,7 +21,7 @@ builder.Services.AddOpenApi(options =>
     {
         document.Servers = new List<OpenApiServer>
         {
-            new OpenApiServer { Url = "https://sinalvortex-production.up.railway.app" }
+            new OpenApiServer { Url = "http://localhost:5287" }
         };
         return Task.CompletedTask;
     });
