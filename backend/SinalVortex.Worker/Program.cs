@@ -47,8 +47,10 @@ builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, SmsNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, PushNotificacaoService>();
-builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
+builder.Services.AddScoped<INotificacaoService, WhatsappNotificacaoService>();
+builder.Services.AddScoped<INotificacaoService, WebhookNotificacaoService>();
 
+builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 
 // MediatR
 builder.Services.AddMediatR(cfg => 
