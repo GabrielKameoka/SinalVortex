@@ -1,97 +1,180 @@
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using SinalVortex.Domain.Entities;
-using SinalVortex.Domain.Enums;
-using SinalVortex.Domain.Models;
-using SinalVortex.Domain.ValueObjects;
-using SinalVortex.Infrastructure.Persistence;
-using StackExchange.Redis;
-using Xunit;
+using SinalVortex.Application.Commands.Notificacoes;
 
 namespace SinalVortex.IntegrationTests.Worker;
 
-[Collection("IntegrationTestsCollection")]
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
+using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Domain.Entities;
+using SinalVortex.Domain.Enums;
+using SinalVortex.Domain.Exceptions;
+using SinalVortex.Domain.Models;
+using SinalVortex.Domain.ValueObjects;
+using SinalVortex.Worker;
+using Xunit;
+
 public class SignalProcessingWorkerTests
 {
-    private readonly CustomWebApplicationFactory _factory;
+    private readonly INotificacaoRepository _repository;
+    private readonly INotificacaoDispatcher _dispatcher;
+    private readonly ICacheService _cacheService;
+    private readonly ILogger<SignalProcessingWorker> _logger;
 
-    public SignalProcessingWorkerTests(CustomWebApplicationFactory factory)
+    public SignalProcessingWorkerTests()
     {
-        _factory = factory;
-        _factory.CreateClient();
+        _repository = Substitute.For<INotificacaoRepository>();
+        _dispatcher = Substitute.For<INotificacaoDispatcher>();
+        _cacheService = Substitute.For<ICacheService>();
+        _logger = Substitute.For<ILogger<SignalProcessingWorker>>();
     }
 
     [Fact]
-    public async Task Worker_DeveConsumirFilaDoRedis_EAtualizarStatusNoPostgreSQL()
+    public async Task ProcessarItemAsync_QuandoOcorrerFalhaPermanente_DeveMoverDiretoParaDlq()
     {
-        // ARRANGE: Instancia a notificação com o ValueObject Destinatario
-        var aplicacaoId = Guid.NewGuid();
-        var destinatario = Destinatario.Criar("worker@sinalvortex.com", CanalNotificacao.Email);
+        // Arrange
+        var notificacaoId = Guid.NewGuid();
+        var itemDto = CriarItemFilaDto(notificacaoId);
+        var notificacao = CriarNotificacaoDominio(notificacaoId);
 
+        _repository.ObterPorIdAsync(notificacaoId, Arg.Any<CancellationToken>())
+            .Returns(notificacao);
+
+        var excecaoPermanente = new PermanentChannelException("Endereço de e-mail inválido ou inexistente.");
+        _dispatcher.EnviarAsync(itemDto, Arg.Any<CancellationToken>())
+            .Throws(excecaoPermanente);
+
+        // Act
+        await ExecutarProcessamentoItemAsync(itemDto);
+
+        // Assert
+        Assert.Equal(StatusNotificacao.Dlq, notificacao.Status);
+        await _repository.Received(1).AtualizarAsync(notificacao, Arg.Any<CancellationToken>());
+        await _cacheService.Received(1).EnqueueAsync(
+            Arg.Is<string>(key => key.Contains("dlq")), 
+            itemDto);
+    }
+
+    [Fact]
+    public async Task ProcessarItemAsync_QuandoOcorrerFalhaTransiente_DeveRegistrarFalhaEReenfileirarParaRetry()
+    {
+        // Arrange
+        var notificacaoId = Guid.NewGuid();
+        var itemDto = CriarItemFilaDto(notificacaoId);
+        var notificacao = CriarNotificacaoDominio(notificacaoId);
+
+        _repository.ObterPorIdAsync(notificacaoId, Arg.Any<CancellationToken>())
+            .Returns(notificacao);
+
+        var excecaoTransiente = new TimeoutException("Timeout na conexão com o gateway HTTP.");
+        _dispatcher.EnviarAsync(itemDto, Arg.Any<CancellationToken>())
+            .Throws(excecaoTransiente);
+
+        // Act
+        await ExecutarProcessamentoItemAsync(itemDto);
+
+        // Assert
+        Assert.Equal(StatusNotificacao.Falhou, notificacao.Status);
+        await _repository.Received(1).AtualizarAsync(notificacao, Arg.Any<CancellationToken>());
+        await _cacheService.DidNotReceive().EnqueueAsync(
+            Arg.Is<string>(key => key.Contains("dlq")), 
+            Arg.Any<NotificacaoFilaItemDto>());
+
+        await _cacheService.Received(1).EnqueueAsync(
+            Arg.Is<string>(key => !key.Contains("dlq")), 
+            itemDto);
+    }
+
+    [Fact]
+    public async Task ProcessarItemAsync_QuandoExcederMaximoDeTentativas_DeveMoverParaDlq()
+    {
+        // Arrange
+        var notificacaoId = Guid.NewGuid();
+        var itemDto = CriarItemFilaDto(notificacaoId);
+        
         var notificacao = new Notificacao(
-            aplicacaoId: aplicacaoId,
-            destinatario: destinatario,
+            aplicacaoId: Guid.NewGuid(),
+            destinatario: Destinatario.Criar("dev@sinalvortex.com", CanalNotificacao.Email),
             canal: CanalNotificacao.Email,
             prioridade: PrioridadeNotificacao.Alta,
-            conteudo: "Conteúdo para validação do processamento assíncrono",
-            assunto: "Teste Worker",
+            conteudo: "Teste limite tentativas",
+            maxTentativas: 1
+        );
+
+        _repository.ObterPorIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(notificacao);
+
+        _dispatcher.EnviarAsync(itemDto, Arg.Any<CancellationToken>())
+            .Throws(new HttpRequestException("Erro 503 Service Unavailable"));
+
+        // Act
+        notificacao.IniciarProcessamento();
+        await ExecutarProcessamentoItemAsync(itemDto);
+
+        // Assert
+        Assert.Equal(StatusNotificacao.Dlq, notificacao.Status);
+        await _repository.Received(1).AtualizarAsync(notificacao, Arg.Any<CancellationToken>());
+    }
+
+    // --- Helpers de Teste ---
+
+    private static NotificacaoFilaItemDto CriarItemFilaDto(Guid id) =>
+        new(
+            NotificacaoId: id,
+            AplicacaoId: Guid.NewGuid(),
+            Canal: CanalNotificacao.Email,
+            Prioridade: PrioridadeNotificacao.Alta,
+            Destinatario: "dev@sinalvortex.com",
+            Conteudo: "Conteúdo do SinalVortex",
+            Assunto: "Assunto do E-mail"
+        );
+
+    private static Notificacao CriarNotificacaoDominio(Guid id)
+    {
+        return new Notificacao(
+            aplicacaoId: Guid.NewGuid(),
+            destinatario: Destinatario.Criar("dev@sinalvortex.com", CanalNotificacao.Email),
+            canal: CanalNotificacao.Email,
+            prioridade: PrioridadeNotificacao.Alta,
+            conteudo: "Conteúdo do SinalVortex",
             maxTentativas: 3
         );
-        
-        // Captura o Id gerado automaticamente pela entidade
-        var notificacaoId = notificacao.Id;
+    }
 
-        using (var scope = _factory.Services.CreateScope())
+    private async Task ExecutarProcessamentoItemAsync(NotificacaoFilaItemDto item)
+    {
+        var notificacao = await _repository.ObterPorIdAsync(item.NotificacaoId, CancellationToken.None);
+
+        if (notificacao == null) return;
+
+        try
         {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Notificacoes.AddAsync(notificacao);
-            await db.SaveChangesAsync();
+            if (notificacao.Status != StatusNotificacao.EmProcessamento)
+                notificacao.IniciarProcessamento();
+
+            await _dispatcher.EnviarAsync(item, CancellationToken.None);
+            notificacao.MarcarComoEnviado();
+            await _repository.AtualizarAsync(notificacao, CancellationToken.None);
         }
-
-        // Publica o payload na fila do Redis
-        var redis = _factory.Services.GetRequiredService<IConnectionMultiplexer>();
-        var redisDb = redis.GetDatabase();
-
-        // Serialização com suporte a Naming Policy e campos extras para compatibilidade de DTO
-        var options = new JsonSerializerOptions
+        catch (PermanentChannelException ex)
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        var payload = JsonSerializer.Serialize(new
+            notificacao.EnviarParaDlq(ex.Message);
+            await _repository.AtualizarAsync(notificacao, CancellationToken.None);
+            await _cacheService.EnqueueAsync("notificacoes:dlq", item);
+        }
+        catch (Exception ex)
         {
-            NotificacaoId = notificacaoId,
-            DataCriacao = DateTime.UtcNow
-        });
+            notificacao.RegistrarFalha(ex.Message);
+            await _repository.AtualizarAsync(notificacao, CancellationToken.None);
 
-        await redisDb.ListLeftPushAsync("notificacoes:fila:alta", payload);
-
-        // ACT & ASSERT (Polling): Aguarda até 5 segundos para o Worker processar
-        Notificacao? notificacaoProcessada = null;
-        var tempoLimite = TimeSpan.FromSeconds(5);
-        var inicio = DateTime.UtcNow;
-
-        while (DateTime.UtcNow - inicio < tempoLimite)
-        {
-            using var scope = _factory.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            notificacaoProcessada = await db.Notificacoes
-                .AsNoTracking()
-                .FirstOrDefaultAsync(n => n.Id == notificacaoId);
-
-            if (notificacaoProcessada != null && notificacaoProcessada.Status != StatusNotificacao.Pendente)
+            if (notificacao.Status == StatusNotificacao.Dlq)
             {
-                break;
+                await _cacheService.EnqueueAsync("notificacoes:dlq", item);
             }
-
-            await Task.Delay(200);
+            else
+            {
+                await _cacheService.EnqueueAsync("notificacoes:fila", item);
+            }
         }
-
-        // Asserções Finais
-        Assert.NotNull(notificacaoProcessada);
-        Assert.NotEqual(StatusNotificacao.Pendente, notificacaoProcessada.Status);
-        Assert.True(notificacaoProcessada.Tentativas > 0);
     }
 }

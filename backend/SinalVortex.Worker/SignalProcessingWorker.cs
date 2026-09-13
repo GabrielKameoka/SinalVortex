@@ -1,11 +1,16 @@
 namespace SinalVortex.Worker;
 
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Domain.Exceptions;
 using SinalVortex.Infrastructure.Telemetry;
 
 public class SignalProcessingWorker(
@@ -57,7 +62,7 @@ public class SignalProcessingWorker(
         INotificacaoRepository repository,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("[Processando ID: {Id}] Canal: {Canal}", item.NotificacaoId, item.Canal);
+        logger.LogInformation("[Processando ID: {Id}] Canal: {Canal} | Destinatario: {Destinatario}", item.NotificacaoId, item.Canal, item.Destinatario);
 
         var notificacao = await repository.ObterPorIdAsync(item.NotificacaoId, cancellationToken);
         var stopwatch = Stopwatch.StartNew();
@@ -85,6 +90,24 @@ public class SignalProcessingWorker(
 
             logger.LogInformation("[Sucesso] Notificação ID {Id} enviada em {Ms}ms.", item.NotificacaoId, stopwatch.ElapsedMilliseconds);
         }
+        catch (PermanentChannelException ex)
+        {
+            stopwatch.Stop();
+
+            SinalVortexMetrics.NotificacoesFalhas.Add(1, new KeyValuePair<string, object?>("canal", item.Canal.ToString()));
+            SinalVortexMetrics.TempoProcessamentoMs.Record(stopwatch.ElapsedMilliseconds);
+
+            logger.LogError(ex, "[Falha Permanente] Erro definitivo na Notificação ID {Id}. Movendo direto para DLQ.", item.NotificacaoId);
+
+            if (notificacao != null)
+            {
+                // Utiliza o método nativo do seu modelo de domínio
+                notificacao.EnviarParaDlq(ex.Message);
+        
+                await repository.AtualizarAsync(notificacao, cancellationToken);
+                await cacheService.EnqueueAsync(FilaDlqKey, item);
+            }
+        }
         catch (Exception ex)
         {
             stopwatch.Stop();
@@ -92,7 +115,7 @@ public class SignalProcessingWorker(
             SinalVortexMetrics.NotificacoesFalhas.Add(1, new KeyValuePair<string, object?>("canal", item.Canal.ToString()));
             SinalVortexMetrics.TempoProcessamentoMs.Record(stopwatch.ElapsedMilliseconds);
 
-            logger.LogError(ex, "[Falha] Erro no processamento da Notificação ID {Id}.", item.NotificacaoId);
+            logger.LogWarning(ex, "[Falha Transiente] Erro temporário na Notificação ID {Id}.", item.NotificacaoId);
 
             if (notificacao != null)
             {
