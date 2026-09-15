@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Application.Dtos; // <-- Namespace adicionado para resolver NotificacaoFilaItemDto
 using SinalVortex.Domain.Entities;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Exceptions;
@@ -93,6 +94,7 @@ public class SignalProcessingWorkerTests
         var itemDto = CriarItemFilaDto(notificacaoId);
         
         var notificacao = new Notificacao(
+            tenantId: Guid.NewGuid(),
             aplicacaoId: Guid.NewGuid(),
             destinatario: Destinatario.Criar("dev@sinalvortex.com", CanalNotificacao.Email),
             canal: CanalNotificacao.Email,
@@ -132,6 +134,7 @@ public class SignalProcessingWorkerTests
     private static Notificacao CriarNotificacaoDominio(Guid id)
     {
         return new Notificacao(
+            tenantId: Guid.NewGuid(),
             aplicacaoId: Guid.NewGuid(),
             destinatario: Destinatario.Criar("dev@sinalvortex.com", CanalNotificacao.Email),
             canal: CanalNotificacao.Email,

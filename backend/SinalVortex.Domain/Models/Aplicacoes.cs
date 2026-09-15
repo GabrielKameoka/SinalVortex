@@ -1,19 +1,18 @@
+using SinalVortex.Domain.Common;
 using SinalVortex.Domain.Exceptions;
 
 namespace SinalVortex.Domain.Models;
 
 public class Aplicacoes : BaseEntity
 {
-    public Guid Id { get; private set; }
     public string Nome { get; private set; }
     public string ApiKeyHash { get; private set; }
     public bool Ativo { get; private set; }
-    public DateTime CriadoEm { get; private set; }
 
     // Construtor EF Core
     private Aplicacoes() { }
 
-    public Aplicacoes(string nome, string apiKeyHash)
+    public Aplicacoes(Guid tenantId, string nome, string apiKeyHash) : base(tenantId)
     {
         if (string.IsNullOrWhiteSpace(nome))
             throw new DomainException("O nome da aplicação não pode ser vazio.");
@@ -21,11 +20,9 @@ public class Aplicacoes : BaseEntity
         if (string.IsNullOrWhiteSpace(apiKeyHash))
             throw new DomainException("O hash da API Key é obrigatório.");
 
-        Id = Guid.NewGuid();
         Nome = nome.Trim();
         ApiKeyHash = apiKeyHash;
         Ativo = true;
-        CriadoEm = DateTime.UtcNow;
     }
 
     public void Desativar()
@@ -34,6 +31,7 @@ public class Aplicacoes : BaseEntity
             throw new DomainException("A aplicação já está inativa.");
 
         Ativo = false;
+        Touch();
     }
 
     public void Reativar()
@@ -42,6 +40,7 @@ public class Aplicacoes : BaseEntity
             throw new DomainException("A aplicação já está ativa.");
 
         Ativo = true;
+        Touch();
     }
 
     public void AtualizarApiKey(string novoApiKeyHash)
@@ -50,5 +49,6 @@ public class Aplicacoes : BaseEntity
             throw new DomainException("O novo hash da API Key é obrigatório.");
 
         ApiKeyHash = novoApiKeyHash;
+        Touch();
     }
 }

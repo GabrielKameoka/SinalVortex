@@ -46,6 +46,6 @@ public class NotificacaoConfiguration : IEntityTypeConfiguration<Notificacao>
         // Índices para otimização de consultas paginadas e por status
         builder.HasIndex(n => n.AplicacaoId);
         builder.HasIndex(n => n.Status);
-        builder.HasIndex(n => n.CriadoEm);
+        builder.HasIndex(n => n.CreatedAt);
     }
 }

@@ -1,3 +1,4 @@
+using SinalVortex.Domain.Common;
 using SinalVortex.Domain.Entities;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Exceptions;
@@ -5,12 +6,12 @@ using SinalVortex.Domain.ValueObjects;
 
 namespace SinalVortex.Domain.Models;
 
-public class Notificacao
+public class Notificacao : BaseEntity
 {
     private readonly List<LogNotificacao> _logs = new();
 
-    public Guid Id { get; private set; }
     public Guid AplicacaoId { get; private set; }
+    public Guid? ContatoId { get; private set; } // Vínculo com CRM
     public Destinatario Destinatario { get; private set; }
     public CanalNotificacao Canal { get; private set; }
     public PrioridadeNotificacao Prioridade { get; private set; }
@@ -22,22 +23,23 @@ public class Notificacao
     public int MaxTentativas { get; private set; }
     public DateTime? AgendadoPara { get; private set; }
     public DateTime? ProcessadoEm { get; private set; }
-    public DateTime CriadoEm { get; private set; }
 
     public IReadOnlyCollection<LogNotificacao> Logs => _logs.AsReadOnly();
 
     private Notificacao() { }
 
     public Notificacao(
+        Guid tenantId,
         Guid aplicacaoId,
         Destinatario destinatario,
         CanalNotificacao canal,
         PrioridadeNotificacao prioridade,
         string conteudo,
+        Guid? contatoId = null,
         string? assunto = null,
         Guid? templateId = null,
         int maxTentativas = 3,
-        DateTime? agendadoPara = null)
+        DateTime? agendadoPara = null) : base(tenantId)
     {
         if (aplicacaoId == Guid.Empty)
             throw new DomainException("AplicacaoId é obrigatório.");
@@ -48,8 +50,8 @@ public class Notificacao
         if (maxTentativas <= 0)
             throw new DomainException("MaxTentativas deve ser maior que zero.");
 
-        Id = Guid.NewGuid();
         AplicacaoId = aplicacaoId;
+        ContatoId = contatoId;
         Destinatario = destinatario;
         Canal = canal;
         Prioridade = prioridade;
@@ -60,12 +62,9 @@ public class Notificacao
         Tentativas = 0;
         MaxTentativas = maxTentativas;
         AgendadoPara = agendadoPara;
-        CriadoEm = DateTime.UtcNow;
 
         AdicionarLog(StatusNotificacao.Pendente, StatusNotificacao.Pendente, "Notificação criada e enfileirada.");
     }
-
-    // --- Métodos de Comportamento de Domínio Rico ---
 
     public void IniciarProcessamento()
     {
