@@ -15,13 +15,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Controllers & Documentação OpenAPI / Scalar
 builder.Services.AddControllers();
+
+// Define a URL base dinamicamente (pode vir do appsettings ou do ambiente)
+var serverUrl = builder.Environment.IsDevelopment()
+    ? "http://localhost:5287"
+    : builder.Configuration["ApiBaseUrl"] ?? "https://sinalvortex-production.up.railway.app";
+
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
         document.Servers = new List<OpenApiServer>
         {
-            new OpenApiServer { Url = "http://localhost:5287" }
+            new OpenApiServer { Url = serverUrl }
         };
         return Task.CompletedTask;
     });
