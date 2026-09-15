@@ -23,17 +23,19 @@ public class ProcessarInboundWebhookCommandHandlerTests
     public async Task Handle_DeveAtualizarStatusParaEnviado_QuandoEventoForEntregue()
     {
         // Arrange
+        var tenantId = Guid.NewGuid();
         var aplicacaoId = Guid.NewGuid();
         var destinatario = Destinatario.Criar("test@example.com", CanalNotificacao.Email); 
 
-        // Mapeamento correto conforme o construtor da entidade Notificacao:
-        // (aplicacaoId, destinatario, canal, prioridade, conteudo, assunto)
+        // Construtor: (tenantId, aplicacaoId, destinatario, canal, prioridade, conteudo, contatoId, assunto)
         var notificacao = new Notificacao(
+            tenantId,
             aplicacaoId, 
             destinatario, 
             CanalNotificacao.Email, 
             PrioridadeNotificacao.Normal,
-            "Conteúdo da notificação", 
+            "Conteúdo da notificação",
+            null,
             "Assunto da notificação"
         );
         

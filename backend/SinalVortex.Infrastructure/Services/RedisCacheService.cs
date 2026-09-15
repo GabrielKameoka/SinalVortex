@@ -63,6 +63,11 @@ public class RedisCacheService : ICacheService
         if (string.IsNullOrEmpty(json))
             return default;
 
+        if (typeof(T) == typeof(string))
+        {
+            return (T)(object)json;
+        }
+
         return JsonSerializer.Deserialize<T>(json);
     }
 
@@ -102,16 +107,21 @@ public class RedisCacheService : ICacheService
         if (value.IsNullOrEmpty)
             return default;
 
+        string rawValue = value.ToString();
+
+        // Se o consumidor espera uma string, retorna o valor direto sem tentar tratar como JSON
+        if (typeof(T) == typeof(string))
+        {
+            return (T)(object)rawValue;
+        }
+
         try
         {
-            // Converter explicitamente o RedisValue para string resolve a ambiguidade
-            string jsonString = value.ToString();
-            return JsonSerializer.Deserialize<T>(jsonString);
+            return JsonSerializer.Deserialize<T>(rawValue);
         }
         catch (JsonException ex)
         {
-            // Loga a falha de desserialização sem derrubar o Worker
-            _logger.LogError(ex, "Erro ao desserializar mensagem da fila {QueueName}: {Value}", queueName, value.ToString());
+            _logger.LogError(ex, "Erro ao desserializar mensagem da fila {QueueName}: {Value}", queueName, rawValue);
             return default;
         }
     }

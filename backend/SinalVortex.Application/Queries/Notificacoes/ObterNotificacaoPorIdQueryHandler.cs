@@ -25,7 +25,7 @@ public class ObterNotificacaoPorIdQueryHandler(INotificacaoRepository notificaca
             notificacao.Tentativas,
             notificacao.MaxTentativas,
             notificacao.ProcessadoEm,
-            notificacao.CriadoEm
+            notificacao.CreatedAt
         );
     }
 }

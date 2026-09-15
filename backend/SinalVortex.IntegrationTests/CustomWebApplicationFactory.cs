@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NSubstitute;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Services;
@@ -28,15 +29,15 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
     public async Task InitializeAsync()
     {
-        // 1. Inicia os contêineres do Testcontainers
         await _postgresContainer.StartAsync();
         await _redisContainer.StartAsync();
 
-        // 2. Aplica as Migrations uma única vez no container efêmero
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseNpgsql(_postgresContainer.GetConnectionString());
 
-        using var context = new AppDbContext(optionsBuilder.Options);
+        // Passa um TenantContext dummy para rodar as migrations na inicialização
+        var dummyTenantContext = new SinalVortex.Application.Common.Contexts.TenantContext();
+        using var context = new AppDbContext(optionsBuilder.Options, dummyTenantContext);
         await context.Database.MigrateAsync();
     }
 
@@ -52,6 +53,16 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
         builder.ConfigureServices(services =>
         {
+            // Subsitui/injeta o mock da interface para que o WebApplicationFactory consiga resolver a dependência
+            var contatoRepoMock = Substitute.For<IContatoRepository>();
+            services.AddScoped(_ => contatoRepoMock);
+            
+            // Fornece um TenantContext padrão para os testes de integração
+            services.RemoveAll(typeof(ITenantContext));
+            var testTenant = new SinalVortex.Application.Common.Contexts.TenantContext();
+            testTenant.SetTenant(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+            services.AddSingleton<ITenantContext>(testTenant);
+            
             // Remove qualquer registro anterior de INotificacaoService
             services.RemoveAll(typeof(INotificacaoService));
 
