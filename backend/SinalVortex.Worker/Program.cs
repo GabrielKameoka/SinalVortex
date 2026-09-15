@@ -8,6 +8,7 @@ using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
+using SinalVortex.Infrastructure.Services.Webhooks;
 using SinalVortex.Worker;
 using SinalVortex.Worker.Workers;
 using StackExchange.Redis;
@@ -40,10 +41,12 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
-// 1. O Estado da Política de Resiliência DEVE ser Singleton
-builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 
-// 2. Registre as estratégias com escopo consistente (Scoped)
+// Resiliência e Webhooks
+builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
+builder.Services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
+
+// Estratégias de Notificação
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, SmsNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, PushNotificacaoService>();
@@ -56,9 +59,10 @@ builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 builder.Services.AddMediatR(cfg => 
     cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
 
-// Workers em Segundo Plano (Executores de Background Tasks)
+// Workers em Segundo Plano
 builder.Services.AddHostedService<SignalProcessingWorker>();
 builder.Services.AddHostedService<LimpezaNotificacoesWorker>();
+builder.Services.AddHostedService<InboundWebhookWorker>();
 
 var host = builder.Build();
 await host.RunAsync();
