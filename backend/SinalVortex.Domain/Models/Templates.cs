@@ -1,6 +1,6 @@
 using SinalVortex.Domain.Exceptions;
 
-namespace SinalVortex.Domain.Entities;
+namespace SinalVortex.Domain.Models;
 
 public class Template
 {

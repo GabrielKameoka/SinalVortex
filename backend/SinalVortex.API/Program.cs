@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
+using SinalVortex.Api.Middlewares;
+using SinalVortex.Application.Common.Contexts;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
 using SinalVortex.Infrastructure.Health;
@@ -69,6 +71,11 @@ builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
 builder.Services.AddScoped<IRedisQueueService, RedisQueueService>();
 builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
+// Injeção de Dependência
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+
+
 
 // 7. MediatR
 builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
@@ -94,6 +101,7 @@ var app = builder.Build();
 
 // 9. Pipeline HTTP
 app.MapOpenApi();
+app.UseMiddleware<TenantResolverMiddleware>();
 
 app.MapScalarApiReference(options =>
 {
