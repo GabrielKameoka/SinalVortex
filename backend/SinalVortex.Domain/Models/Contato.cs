@@ -34,6 +34,17 @@ public class Contato : BaseEntity
         Touch();
     }
 
+    public void Atualizar(string nome, string? email, string? telefone, CanalNotificacao canal)
+    {
+        if (string.IsNullOrWhiteSpace(nome))
+            throw new DomainException("Nome do contato é obrigatório.");
+        Nome = nome.Trim();
+        Email = email?.Trim().ToLowerInvariant();
+        Telefone = telefone?.Trim();
+        CanalPreferencial = canal;
+        Touch();
+    }
+
     public void AdicionarTag(string tag)
     {
         if (string.IsNullOrWhiteSpace(tag)) return;
