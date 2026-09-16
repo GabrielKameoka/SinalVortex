@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<Contato> Contatos => Set<Contato>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext tenantContext) 
         : base(options)
@@ -39,6 +40,16 @@ public class AppDbContext : DbContext
                     .IsRequired();
             });
         });
+
+        modelBuilder.Entity<Usuario>(b =>
+        {
+            b.HasIndex(u => new { u.TenantId, u.Email }).IsUnique();
+            b.Property(u => u.Email).HasMaxLength(320);
+            b.Property(u => u.Nome).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Template>()
+            .HasQueryFilter(template => template.TenantId == CurrentTenantId);
         
         // Aplica Global Query Filter para todas as entidades derivadas de BaseEntity
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
