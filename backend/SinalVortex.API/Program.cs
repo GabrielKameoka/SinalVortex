@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using Scalar.AspNetCore;
 using SinalVortex.Api.Middlewares;
 using SinalVortex.API.Authentication;
@@ -97,8 +98,7 @@ builder.Services.AddHealthChecks()
     .AddCheck<SinalVortexHealthCheck>("infra_health_check");
 
 // 3. Configurações de Conexão (PostgreSQL & Redis)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+var connectionString = ResolvePostgresConnectionString(builder.Configuration);
 
 var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection")
                             ?? "localhost:6379";
@@ -209,3 +209,29 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string ResolvePostgresConnectionString(IConfiguration configuration)
+{
+    var configured = configuration.GetConnectionString("DefaultConnection")
+                     ?? configuration["DATABASE_URL"]
+                     ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+
+    if (!Uri.TryCreate(configured, UriKind.Absolute, out var databaseUri) ||
+        (databaseUri.Scheme != "postgres" && databaseUri.Scheme != "postgresql"))
+    {
+        return configured;
+    }
+
+    var userInfo = databaseUri.UserInfo.Split(':', 2);
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = databaseUri.Host,
+        Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+        Database = databaseUri.AbsolutePath.Trim('/'),
+        Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+        SslMode = SslMode.Require
+    };
+
+    return builder.ConnectionString;
+}
