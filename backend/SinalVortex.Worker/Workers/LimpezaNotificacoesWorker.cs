@@ -26,7 +26,7 @@ public class LimpezaNotificacoesWorker : BackgroundService
             try
             {
                 using var scope = _serviceProvider.CreateScope();
-                var repository = scope.ServiceProvider.GetRequiredService<INotificacaoRepository>();
+                var repository = scope.ServiceProvider.GetRequiredService<ISystemNotificacaoRepository>();
 
                 var dataCorte = DateTime.UtcNow.AddDays(-30);
                 _logger.LogInformation("Executando expiração de registros anteriores a {DataCorte}...", dataCorte);

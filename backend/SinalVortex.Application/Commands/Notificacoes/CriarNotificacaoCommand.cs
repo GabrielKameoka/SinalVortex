@@ -26,5 +26,6 @@ public record NotificacaoFilaItemDto(
     PrioridadeNotificacao Prioridade,
     string Destinatario,
     string Conteudo,
-    string? Assunto
+    string? Assunto,
+    Guid TenantId = default
 );

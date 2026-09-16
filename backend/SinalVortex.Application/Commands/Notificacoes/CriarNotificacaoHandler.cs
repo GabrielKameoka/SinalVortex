@@ -52,7 +52,8 @@ public class CriarNotificacaoCommandHandler : IRequestHandler<CriarNotificacaoCo
             notificacao.Prioridade,
             notificacao.Destinatario.Valor,
             notificacao.Conteudo,
-            notificacao.Assunto
+            notificacao.Assunto,
+            notificacao.TenantId
         );
 
         await _cacheService.EnqueueAsync(filaKey, payloadFila);

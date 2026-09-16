@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
 using SinalVortex.Application.Common.Interfaces;
@@ -50,9 +54,17 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         builder.UseSetting("ConnectionStrings:Redis", redisConn);
         builder.UseSetting("Redis", redisConn);
         builder.UseSetting("Redis:ConnectionString", redisConn);
+        builder.UseSetting("Jwt:Issuer", "SinalVortex.Tests");
+        builder.UseSetting("Jwt:Audience", "SinalVortex.Tests");
+        builder.UseSetting("Jwt:SigningKey", "integration-tests-signing-key-with-at-least-32-bytes");
 
         builder.ConfigureServices(services =>
         {
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = "IntegrationTest";
+                options.DefaultChallengeScheme = "IntegrationTest";
+            }).AddScheme<AuthenticationSchemeOptions, IntegrationTestAuthenticationHandler>("IntegrationTest", _ => { });
             // Subsitui/injeta o mock da interface para que o WebApplicationFactory consiga resolver a dependência
             var contatoRepoMock = Substitute.For<IContatoRepository>();
             services.AddScoped(_ => contatoRepoMock);
@@ -87,6 +99,20 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     {
         await _postgresContainer.StopAsync();
         await _redisContainer.StopAsync();
+    }
+}
+
+internal sealed class IntegrationTestAuthenticationHandler(
+    Microsoft.Extensions.Options.IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var identity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "integration-user"), new Claim("tenant_id", "11111111-1111-1111-1111-111111111111")],
+            Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
     }
 }
 

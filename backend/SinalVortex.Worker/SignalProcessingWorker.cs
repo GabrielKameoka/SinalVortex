@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Commands.Notificacoes;
+using SinalVortex.Application.Common.Contexts;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Exceptions;
 using SinalVortex.Infrastructure.Telemetry;
@@ -38,6 +39,17 @@ public class SignalProcessingWorker(
                 if (item != null)
                 {
                     encontrouItem = true;
+
+                    if (item.TenantId == Guid.Empty)
+                    {
+                        logger.LogError("Mensagem {Id} sem TenantId. Movendo para DLQ para intervenção manual.", item.NotificacaoId);
+                        await cacheService.EnqueueAsync(FilaDlqKey, item);
+                        break;
+                    }
+
+                    // A fila carrega o tenant de origem; cada scope do Worker fica
+                    // limitado ao mesmo filtro global usado nas requisições HTTP.
+                    scope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(item.TenantId);
                     
                     var dispatcher = scope.ServiceProvider.GetRequiredService<INotificacaoDispatcher>();
                     var repository = scope.ServiceProvider.GetRequiredService<INotificacaoRepository>();
