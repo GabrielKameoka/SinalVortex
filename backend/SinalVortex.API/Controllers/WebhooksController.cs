@@ -1,6 +1,7 @@
 namespace SinalVortex.API.Controllers;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using SinalVortex.Application.Common.Interfaces;
@@ -26,6 +27,7 @@ public class WebhooksController : ControllerBase
     }
 
     [HttpPost("{provedor}")]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ReceberWebhook(
