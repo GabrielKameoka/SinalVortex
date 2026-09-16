@@ -9,7 +9,8 @@ public record CriarContatoCRMCommand(
     string Nome,
     string Email,
     string Telefone,
-    CanalNotificacao CanalPreferencial
+    CanalNotificacao CanalPreferencial,
+    IReadOnlyCollection<string>? Tags = null
 ) : IRequest<Guid>;
 
 public class CriarContatoCRMCommandHandler : IRequestHandler<CriarContatoCRMCommand, Guid>
@@ -40,6 +41,9 @@ public class CriarContatoCRMCommandHandler : IRequestHandler<CriarContatoCRMComm
 
         // 3. Define o canal preferencial via método de domínio
         contato.DefinirCanalPreferencial(request.CanalPreferencial);
+        if (request.Tags is not null)
+            foreach (var tag in request.Tags)
+                contato.AdicionarTag(tag);
 
         await _contatoRepository.AdicionarAsync(contato, cancellationToken);
 
