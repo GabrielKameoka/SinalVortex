@@ -125,6 +125,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+builder.Services.AddScoped<IAplicacaoRepository, AplicacaoRepository>();
 builder.Services.AddScoped<IContatoRepository, ContatoRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
