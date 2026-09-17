@@ -2,6 +2,7 @@ namespace SinalVortex.Application.Common.Interfaces;
 
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Models;
+using SinalVortex.Application.Queries.Dashboard;
 
 public interface INotificacaoRepository
 {
@@ -15,5 +16,8 @@ public interface INotificacaoRepository
         CanalNotificacao? canal,
         int pageNumber,
         int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<DashboardMetricsData> ObterMetricasDashboardAsync(
+        DateTime dataInicialUtc,
         CancellationToken cancellationToken = default);
 }

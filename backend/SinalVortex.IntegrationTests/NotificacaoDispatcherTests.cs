@@ -42,6 +42,7 @@ public class NotificacaoDispatcherIntegrationTests : IClassFixture<CustomWebAppl
     [InlineData(CanalNotificacao.Email, "dev@sinalvortex.com")]
     [InlineData(CanalNotificacao.Sms, "+5511999999999")]
     [InlineData(CanalNotificacao.WhatsApp, "+5511999999999")]
+    [InlineData(CanalNotificacao.WhatsApp, "5511999999999")]
     [InlineData(CanalNotificacao.Webhook, "https://webhook.site/test")]
     [InlineData(CanalNotificacao.Push, "device-token-12345")]
     public async Task EnviarAsync_ParaTodosCanaisRegistrados_DeveResolverDriverEConsumir(

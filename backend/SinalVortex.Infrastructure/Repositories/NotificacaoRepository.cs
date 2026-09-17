@@ -5,6 +5,7 @@ using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Models;
 using SinalVortex.Infrastructure.Persistence;
+using SinalVortex.Application.Queries.Dashboard;
 
 public class NotificacaoRepository(AppDbContext context) : INotificacaoRepository
 {
@@ -61,5 +62,35 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
+    }
+
+    public async Task<DashboardMetricsData> ObterMetricasDashboardAsync(
+        DateTime dataInicialUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var query = context.Notificacoes
+            .AsNoTracking()
+            .Where(n => n.CreatedAt >= dataInicialUtc);
+
+        var summary = await query
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Total = group.Count(),
+                Delivered = group.Count(n => n.Status == StatusNotificacao.Enviado),
+                FailedOrDlq = group.Count(n => n.Status == StatusNotificacao.Falhou || n.Status == StatusNotificacao.Dlq)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var byChannel = await query
+            .GroupBy(n => n.Canal)
+            .Select(group => new { Channel = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.Channel, item => item.Count, cancellationToken);
+
+        return new DashboardMetricsData(
+            summary?.Total ?? 0,
+            summary?.Delivered ?? 0,
+            summary?.FailedOrDlq ?? 0,
+            byChannel);
     }
 }
