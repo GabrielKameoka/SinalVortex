@@ -1,7 +1,16 @@
 using FluentValidation;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using Scalar.AspNetCore;
+using SinalVortex.Api.Middlewares;
+using SinalVortex.API.Authentication;
+using SinalVortex.API.Middlewares;
+using SinalVortex.Application.Common.Contexts;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
 using SinalVortex.Infrastructure.Health;
@@ -9,14 +18,56 @@ using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
+using SinalVortex.Infrastructure.Services.Webhooks;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+                 ?? throw new InvalidOperationException("A seção Jwt é obrigatória.");
+if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || Encoding.UTF8.GetByteCount(jwtOptions.SigningKey) < 32)
+    throw new InvalidOperationException("Jwt:SigningKey deve possuir ao menos 32 bytes e ser fornecida por secret manager ou variável de ambiente.");
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer) || string.IsNullOrWhiteSpace(jwtOptions.Audience))
+    throw new InvalidOperationException("Jwt:Issuer e Jwt:Audience são obrigatórios.");
+
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var tenantClaim = context.Principal?.FindFirst("tenant_id")?.Value;
+                if (!Guid.TryParse(tenantClaim, out _))
+                    context.Fail("O token não contém um tenant_id válido.");
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
 // 1. Controllers & Documentação OpenAPI / Scalar
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
 
-// Define a URL base dinamicamente (pode vir do appsettings ou do ambiente)
 var serverUrl = builder.Environment.IsDevelopment()
     ? "http://localhost:5287"
     : builder.Configuration["ApiBaseUrl"] ?? "https://sinalvortex-production.up.railway.app";
@@ -29,6 +80,15 @@ builder.Services.AddOpenApi(options =>
         {
             new OpenApiServer { Url = serverUrl }
         };
+        var components = document.Components ??= new OpenApiComponents();
+        components.SecuritySchemes ??= new Dictionary<string, OpenApiSecurityScheme>();
+        components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Informe o JWT no formato: Bearer {token}."
+        };
         return Task.CompletedTask;
     });
 });
@@ -38,8 +98,7 @@ builder.Services.AddHealthChecks()
     .AddCheck<SinalVortexHealthCheck>("infra_health_check");
 
 // 3. Configurações de Conexão (PostgreSQL & Redis)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+var connectionString = ResolvePostgresConnectionString(builder.Configuration);
 
 var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection")
                             ?? "localhost:6379";
@@ -66,9 +125,18 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+builder.Services.AddScoped<IAplicacaoRepository, AplicacaoRepository>();
+builder.Services.AddScoped<IContatoRepository, ContatoRepository>();
+builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IRedisQueueService, RedisQueueService>();
+builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+builder.Services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
 builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
 // 7. MediatR
 builder.Services.AddValidatorsFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly);
@@ -84,7 +152,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        policy.WithOrigins(origins)
             .AllowAnyMethod()
             .AllowAnyHeader();
     });
@@ -92,17 +161,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 9. Pipeline HTTP
-app.MapOpenApi();
-
-app.MapScalarApiReference(options =>
-{
-    options
-        .WithTitle("SinalVortex API")
-        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-});
-
-app.MapHealthChecks("/health");
+// 9. Pipeline Middleware Base
+app.UseMiddleware<ApiExceptionMiddleware>();
+app.UseCors("AllowAll");
 
 // 10. Execução de Migrations Pendentes
 using (var scope = app.Services.CreateScope())
@@ -126,9 +187,57 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 11. Middlewares e Rotas
-app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+// 11. Endpoints Públicos e Documentação (PermitAnonymous Explícito)
+app.MapHealthChecks("/health").AllowAnonymous();
+
+// Expõe a spec OpenAPI de forma pública
+app.MapOpenApi().AllowAnonymous();
+
+// Configura o Scalar apontando explicitamente para o spec /openapi/v1.json
+app.MapScalarApiReference("/scalar/v1", options =>
+{
+    options
+        .WithTitle("SinalVortex API")
+        .WithOpenApiRoutePattern("/openapi/v1.json")
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+}).AllowAnonymous();
+
+app.MapGet("/", () => Results.Redirect("/scalar/v1"));
+
+// 12. Endpoints Autenticados
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+app.UseAuthentication();
+app.UseMiddleware<TenantResolverMiddleware>();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string ResolvePostgresConnectionString(IConfiguration configuration)
+{
+    var configured = configuration.GetConnectionString("DefaultConnection")
+                     ?? configuration["DATABASE_URL"]
+                     ?? "Host=localhost;Port=5432;Database=sinalvortex;Username=postgres;Password=postgres";
+
+    if (!Uri.TryCreate(configured, UriKind.Absolute, out var databaseUri) ||
+        (databaseUri.Scheme != "postgres" && databaseUri.Scheme != "postgresql"))
+    {
+        return configured;
+    }
+
+    var userInfo = databaseUri.UserInfo.Split(':', 2);
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = databaseUri.Host,
+        Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+        Database = databaseUri.AbsolutePath.Trim('/'),
+        Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+        SslMode = SslMode.Require
+    };
+
+    return builder.ConnectionString;
+}

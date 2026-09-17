@@ -1,11 +1,12 @@
-namespace SinalVortex.Infrastructure.Repositories;
-
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Models;
 using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Application.Queries.Dashboard;
+
+namespace SinalVortex.Infrastructure.Repositories;
 
 public class NotificacaoRepository(AppDbContext context) : INotificacaoRepository
 {
@@ -30,7 +31,7 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
     public async Task<int> RemoverNotificacoesAntigasAsync(DateTime dataCorte, CancellationToken cancellationToken = default)
     {
         return await context.Notificacoes
-            .Where(n => n.CriadoEm < dataCorte && (n.Status == StatusNotificacao.Enviado || n.Status == StatusNotificacao.Dlq))
+            .Where(n => n.CreatedAt < dataCorte && (n.Status == StatusNotificacao.Enviado || n.Status == StatusNotificacao.Dlq))
             .ExecuteDeleteAsync(cancellationToken);
     }
     
@@ -42,7 +43,7 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        var query = context.Notificacoes.AsNoTracking();
+        IQueryable<Notificacao> query = context.Notificacoes.AsNoTracking();
 
         if (aplicacaoId.HasValue)
             query = query.Where(n => n.AplicacaoId == aplicacaoId.Value);
@@ -56,7 +57,7 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderByDescending(n => n.CriadoEm)
+            .OrderByDescending(n => n.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

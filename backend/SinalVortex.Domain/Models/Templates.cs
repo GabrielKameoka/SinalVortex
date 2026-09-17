@@ -1,10 +1,11 @@
 using SinalVortex.Domain.Exceptions;
 
-namespace SinalVortex.Domain.Entities;
+namespace SinalVortex.Domain.Models;
 
 public class Template
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid AplicacaoId { get; private set; }
     public string Chave { get; private set; }
     public string Conteudo { get; private set; }
@@ -13,8 +14,11 @@ public class Template
     // Construtor EF Core
     private Template() { }
 
-    public Template(Guid aplicacaoId, string chave, string conteudo)
+    public Template(Guid tenantId, Guid aplicacaoId, string chave, string conteudo)
     {
+        if (tenantId == Guid.Empty)
+            throw new DomainException("TenantId inválido.");
+
         if (aplicacaoId == Guid.Empty)
             throw new DomainException("AplicacaoId inválido.");
 
@@ -25,6 +29,7 @@ public class Template
             throw new DomainException("O conteúdo do template não pode ser vazio.");
 
         Id = Guid.NewGuid();
+        TenantId = tenantId;
         AplicacaoId = aplicacaoId;
         Chave = chave.Trim().ToLowerInvariant();
         Conteudo = conteudo;

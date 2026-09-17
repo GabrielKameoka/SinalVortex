@@ -9,11 +9,16 @@ public class CriarNotificacaoCommandHandler : IRequestHandler<CriarNotificacaoCo
 {
     private readonly INotificacaoRepository _notificacaoRepository;
     private readonly ICacheService _cacheService;
+    private readonly ITenantContext _tenantContext;
 
-    public CriarNotificacaoCommandHandler(INotificacaoRepository notificacaoRepository, ICacheService cacheService)
+    public CriarNotificacaoCommandHandler(
+        INotificacaoRepository notificacaoRepository, 
+        ICacheService cacheService,
+        ITenantContext tenantContext)
     {
         _notificacaoRepository = notificacaoRepository;
         _cacheService = cacheService;
+        _tenantContext = tenantContext;
     }
 
     public async Task<CriarNotificacaoResultDto> Handle(CriarNotificacaoCommand request, CancellationToken cancellationToken)
@@ -21,15 +26,17 @@ public class CriarNotificacaoCommandHandler : IRequestHandler<CriarNotificacaoCo
         // 1. Instancia e valida o Value Object de domínio conforme o canal
         var destinatario = Destinatario.Criar(request.Destinatario, request.Canal);
 
-        // 2. Cria o Agregado Notificacao (em estado inicial Pendente)
+        // 2. Cria o Agregado Notificacao passando o TenantId no primeiro argumento
         var notificacao = new Notificacao(
+            _tenantContext.TenantId,
             request.AplicacaoId,
             destinatario,
             request.Canal,
             request.Prioridade,
             request.Conteudo,
-            request.Assunto,
-            request.TemplateId
+            contatoId: null, // Ajustado caso request não exponha ContatoId
+            assunto: request.Assunto,
+            templateId: request.TemplateId
         );
 
         // 3. Persiste via repositório de domínio
@@ -45,7 +52,8 @@ public class CriarNotificacaoCommandHandler : IRequestHandler<CriarNotificacaoCo
             notificacao.Prioridade,
             notificacao.Destinatario.Valor,
             notificacao.Conteudo,
-            notificacao.Assunto
+            notificacao.Assunto,
+            notificacao.TenantId
         );
 
         await _cacheService.EnqueueAsync(filaKey, payloadFila);
@@ -54,8 +62,7 @@ public class CriarNotificacaoCommandHandler : IRequestHandler<CriarNotificacaoCo
         return new CriarNotificacaoResultDto(
             notificacao.Id,
             notificacao.Status,
-            notificacao.CriadoEm
+            notificacao.CreatedAt
         );
     }
 }
-//Executam os casos de uso da aplicação. O Command carrega apenas os dados da intenção (ex: CriarNotificacaoCommand), enquanto o CommandHandler executa as regras de negócio associadas (validar, salvar no banco, enfileirar no Redis).

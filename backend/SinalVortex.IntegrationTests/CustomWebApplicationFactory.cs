@@ -1,8 +1,13 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NSubstitute;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Services;
@@ -28,15 +33,15 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
     public async Task InitializeAsync()
     {
-        // 1. Inicia os contêineres do Testcontainers
         await _postgresContainer.StartAsync();
         await _redisContainer.StartAsync();
 
-        // 2. Aplica as Migrations uma única vez no container efêmero
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseNpgsql(_postgresContainer.GetConnectionString());
 
-        using var context = new AppDbContext(optionsBuilder.Options);
+        // Passa um TenantContext dummy para rodar as migrations na inicialização
+        var dummyTenantContext = new SinalVortex.Application.Common.Contexts.TenantContext();
+        using var context = new AppDbContext(optionsBuilder.Options, dummyTenantContext);
         await context.Database.MigrateAsync();
     }
 
@@ -45,13 +50,29 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         var redisConn = _redisContainer.GetConnectionString();
         var postgresConn = _postgresContainer.GetConnectionString();
 
-        builder.UseSetting("ConnectionStrings:PostgreSQL", postgresConn);
-        builder.UseSetting("ConnectionStrings:Redis", redisConn);
-        builder.UseSetting("Redis", redisConn);
-        builder.UseSetting("Redis:ConnectionString", redisConn);
+        builder.UseSetting("ConnectionStrings:DefaultConnection", postgresConn);
+        builder.UseSetting("ConnectionStrings:RedisConnection", redisConn);
+        builder.UseSetting("Jwt:Issuer", "SinalVortex.Tests");
+        builder.UseSetting("Jwt:Audience", "SinalVortex.Tests");
+        builder.UseSetting("Jwt:SigningKey", "integration-tests-signing-key-with-at-least-32-bytes");
 
         builder.ConfigureServices(services =>
         {
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = "IntegrationTest";
+                options.DefaultChallengeScheme = "IntegrationTest";
+            }).AddScheme<AuthenticationSchemeOptions, IntegrationTestAuthenticationHandler>("IntegrationTest", _ => { });
+            // Subsitui/injeta o mock da interface para que o WebApplicationFactory consiga resolver a dependência
+            var contatoRepoMock = Substitute.For<IContatoRepository>();
+            services.AddScoped(_ => contatoRepoMock);
+            
+            // Fornece um TenantContext padrão para os testes de integração
+            services.RemoveAll(typeof(ITenantContext));
+            var testTenant = new SinalVortex.Application.Common.Contexts.TenantContext();
+            testTenant.SetTenant(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+            services.AddSingleton<ITenantContext>(testTenant);
+            
             // Remove qualquer registro anterior de INotificacaoService
             services.RemoveAll(typeof(INotificacaoService));
 
@@ -76,6 +97,20 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     {
         await _postgresContainer.StopAsync();
         await _redisContainer.StopAsync();
+    }
+}
+
+internal sealed class IntegrationTestAuthenticationHandler(
+    Microsoft.Extensions.Options.IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var identity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "integration-user"), new Claim("tenant_id", "11111111-1111-1111-1111-111111111111")],
+            Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
     }
 }
 
