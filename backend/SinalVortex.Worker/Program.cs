@@ -59,6 +59,7 @@ builder.Services.AddScoped<INotificacaoService, WhatsappNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, WebhookNotificacaoService>();
 
 builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
+builder.Services.AddSingleton<QueueMonitorPublisher>();
 
 // MediatR
 builder.Services.AddMediatR(cfg =>

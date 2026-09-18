@@ -5,6 +5,7 @@
     </div>
     <div class="top-actions">
       <a class="inbox-link" routerLink="/inbox">Inbox</a>
+      <a class="inbox-link" routerLink="/monitor-filas">Filas</a>
       <button class="icon-button" (click)="theme.toggle()"
         [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">
         {{ theme.theme() === 'dark' ? '☼' : '☾' }}

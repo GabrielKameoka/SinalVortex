@@ -10,6 +10,7 @@ using Scalar.AspNetCore;
 using SinalVortex.Api.Middlewares;
 using SinalVortex.API.Authentication;
 using SinalVortex.API.Middlewares;
+using SinalVortex.API.Hubs;
 using SinalVortex.Application.Common.Contexts;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Services;
@@ -47,6 +48,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs/queue-monitor"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            },
             OnTokenValidated = context =>
             {
                 var tenantClaim = context.Principal?.FindFirst("tenant_id")?.Value;
@@ -67,6 +75,8 @@ builder.Services.AddAuthorization(options =>
 // 1. Controllers & Documentação OpenAPI / Scalar
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<QueueMonitorRelayService>();
 
 var serverUrl = builder.Environment.IsDevelopment()
     ? "http://localhost:5287"
@@ -153,9 +163,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policy =>
     {
         var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-        policy.WithOrigins(origins)
+            policy.WithOrigins(origins)
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -213,6 +224,7 @@ app.UseAuthentication();
 app.UseMiddleware<TenantResolverMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<QueueMonitorHub>("/hubs/queue-monitor");
 
 app.Run();
 
