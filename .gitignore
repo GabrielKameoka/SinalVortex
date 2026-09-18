@@ -37,6 +37,4 @@ publish/
 postgres_data/
 
 # Dependencies
-package-lock.json
 yarn.lock
-
