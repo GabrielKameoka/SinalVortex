@@ -45,10 +45,10 @@ public sealed class AplicacoesController(
         await repository.AdicionarAsync(aplicacao, cancellationToken);
 
         return CreatedAtAction(nameof(Obter), new { id = aplicacao.Id }, new CriarAplicacaoResponse(
-            aplicacao.Id, aplicacao.Nome, apiKey, aplicacao.Ativo, aplicacao.CreatedAt));
+            aplicacao.Id, aplicacao.Nome, apiKey, aplicacao.Ativo, aplicacao.CriadoEm));
     }
 
-    private static AplicacaoDto ToDto(Aplicacoes aplicacao) => new(aplicacao.Id, aplicacao.Nome, aplicacao.Ativo, aplicacao.CreatedAt);
+    private static AplicacaoDto ToDto(Aplicacoes aplicacao) => new(aplicacao.Id, aplicacao.Nome, aplicacao.Ativo, aplicacao.CriadoEm);
 }
 
 public sealed record CriarAplicacaoRequest(string Nome);

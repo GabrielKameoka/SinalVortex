@@ -1,0 +1,122 @@
+<main class="inbox-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/dashboard"
+      ><span class="brand-mark">SV</span><span>SinalVortex</span></a
+    >
+    <div class="top-actions">
+      <a routerLink="/dashboard">Dashboard</a
+      ><button
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+        "
+      >
+        {{ theme.theme() === "dark" ? "☼" : "☾" }}
+      </button>
+    </div>
+  </header>
+  <section class="heading">
+    <div>
+      <p>Central de atendimento</p>
+      <h1>Inbox multicanal</h1>
+    </div>
+    <b>{{ conversations.length }} conversas ativas</b>
+  </section>
+  <section class="inbox-grid">
+    <aside class="conversations">
+      <h2>Conversas</h2>
+      <button
+        *ngFor="let c of conversations"
+        class="conversation"
+        [class.selected]="selectedId() === c.id"
+        (click)="selectConversation(c.id)"
+        [attr.aria-pressed]="selectedId() === c.id"
+      >
+        <span class="avatar">{{ initials(c.contact) }}</span
+        ><span
+          ><strong>{{ c.contact.name }}</strong
+          ><small>{{ c.preview }}</small></span
+        ><i [class]="'channel ' + c.channel">{{
+          channelLabel(c.channel).slice(0, 1)
+        }}</i
+        ><b *ngIf="c.unreadCount">{{ c.unreadCount }}</b>
+      </button>
+    </aside>
+    <section class="timeline">
+      <header>
+        <span class="avatar">{{
+          initials(selectedConversation().contact)
+        }}</span>
+        <div>
+          <h2>{{ selectedConversation().contact.name }}</h2>
+        </div>
+      </header>
+      <div class="events">
+        <ng-container *ngFor="let event of timeline(); let i = index"
+          ><div
+            class="day"
+            *ngIf="i === 0 || day(event) !== day(timeline()[i - 1])"
+          >
+            {{ day(event) }}
+          </div>
+          <article [class]="'message ' + event.direction">
+            <small>{{ channelLabel(event.channel) }}</small>
+            <p>{{ event.content }}</p>
+            <time>{{ event.occurredAt | date: "HH:mm" }}</time>
+          </article></ng-container
+        >
+      </div>
+    </section>
+    <aside class="crm">
+      <p>Ficha rápida CRM</p>
+      <div class="contact">
+        <span class="avatar xl">{{
+          initials(selectedConversation().contact)
+        }}</span>
+        <h2>{{ selectedConversation().contact.name }}</h2>
+        <small
+          >Contato desde
+          {{
+            selectedConversation().contact.createdAt | date: "MMM yyyy"
+          }}</small
+        >
+      </div>
+      <dl>
+        <div>
+          <dt>E-mail</dt>
+          <dd>{{ selectedConversation().contact.email }}</dd>
+        </div>
+        <div>
+          <dt>Telefone</dt>
+          <dd>{{ selectedConversation().contact.phone }}</dd>
+        </div>
+        <div>
+          <dt>Canal preferencial</dt>
+          <dd>
+            {{ channelLabel(selectedConversation().contact.preferredChannel) }}
+          </dd>
+        </div>
+      </dl>
+      <section>
+        <h3>Tags da IA</h3>
+        <span
+          class="tag"
+          *ngFor="let tag of selectedConversation().contact.tags"
+          >{{ tag }}</span
+        >
+      </section>
+      <section>
+        <h3>Histórico</h3>
+        <strong>{{ selectedConversation().contact.totalInteractions }}</strong
+        ><small>interações registradas</small>
+        <p>
+          Último contato em
+          {{
+            selectedConversation().contact.lastInteractionAt
+              | date: "dd/MM, HH:mm"
+          }}
+        </p>
+      </section>
+    </aside>
+  </section>
+</main>

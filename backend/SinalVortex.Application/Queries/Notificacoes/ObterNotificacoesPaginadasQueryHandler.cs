@@ -37,7 +37,7 @@ public class ObterNotificacoesPaginadasQueryHandler
             n.Tentativas,
             n.MaxTentativas,
             n.ProcessadoEm,
-            n.CreatedAt
+            n.CriadoEm
         )).ToList();
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);

@@ -202,8 +202,13 @@ app.MapScalarApiReference("/scalar/v1", options =>
         .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
 }).AllowAnonymous();
 
+app.MapGet("/", () => Results.Redirect("/scalar/v1"));
+
 // 12. Endpoints Autenticados
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseMiddleware<TenantResolverMiddleware>();
 app.UseAuthorization();

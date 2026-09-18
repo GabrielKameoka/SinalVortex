@@ -50,10 +50,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         var redisConn = _redisContainer.GetConnectionString();
         var postgresConn = _postgresContainer.GetConnectionString();
 
-        builder.UseSetting("ConnectionStrings:PostgreSQL", postgresConn);
-        builder.UseSetting("ConnectionStrings:Redis", redisConn);
-        builder.UseSetting("Redis", redisConn);
-        builder.UseSetting("Redis:ConnectionString", redisConn);
+        builder.UseSetting("ConnectionStrings:DefaultConnection", postgresConn);
+        builder.UseSetting("ConnectionStrings:RedisConnection", redisConn);
         builder.UseSetting("Jwt:Issuer", "SinalVortex.Tests");
         builder.UseSetting("Jwt:Audience", "SinalVortex.Tests");
         builder.UseSetting("Jwt:SigningKey", "integration-tests-signing-key-with-at-least-32-bytes");
