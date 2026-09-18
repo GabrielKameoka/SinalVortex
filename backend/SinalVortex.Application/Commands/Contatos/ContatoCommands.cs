@@ -33,7 +33,7 @@ public sealed class RemoverContatoHandler(IContatoRepository repository) : IRequ
 
 public sealed record ObterContatosQuery(string? Busca = null, int PageNumber = 1, int PageSize = 20) : IRequest<ContatoPageDto>;
 public sealed record ObterContatoQuery(Guid Id) : IRequest<ContatoDto?>;
-public sealed record ContatoDto(Guid Id, string Nome, string? Email, string? Telefone, CanalNotificacao CanalPreferencial, IReadOnlyCollection<string> Tags, DateTime CreatedAt, DateTime? UpdatedAt);
+public sealed record ContatoDto(Guid Id, string Nome, string? Email, string? Telefone, CanalNotificacao CanalPreferencial, IReadOnlyCollection<string> Tags, DateTime CriadoEm, DateTime? AtualizadoEm);
 public sealed record ContatoPageDto(IReadOnlyCollection<ContatoDto> Items, int PageNumber, int PageSize, int TotalCount, int TotalPages, bool HasNextPage, bool HasPreviousPage);
 
 public sealed class ObterContatosHandler(IContatoRepository repository) : IRequestHandler<ObterContatosQuery, ContatoPageDto>
@@ -42,7 +42,7 @@ public sealed class ObterContatosHandler(IContatoRepository repository) : IReque
     {
         var (items, total) = await repository.ObterPaginadoAsync(request.Busca, request.PageNumber, request.PageSize, cancellationToken);
         var pages = (int)Math.Ceiling(total / (double)request.PageSize);
-        return new(items.Select(c => new ContatoDto(c.Id, c.Nome, c.Email, c.Telefone, c.CanalPreferencial, c.Tags, c.CreatedAt, c.UpdatedAt)).ToArray(), request.PageNumber, request.PageSize, total, pages, request.PageNumber < pages, request.PageNumber > 1);
+        return new(items.Select(c => new ContatoDto(c.Id, c.Nome, c.Email, c.Telefone, c.CanalPreferencial, c.Tags, c.CriadoEm, c.AtualizadoEm)).ToArray(), request.PageNumber, request.PageSize, total, pages, request.PageNumber < pages, request.PageNumber > 1);
     }
 }
 
@@ -51,6 +51,6 @@ public sealed class ObterContatoHandler(IContatoRepository repository) : IReques
     public async Task<ContatoDto?> Handle(ObterContatoQuery request, CancellationToken cancellationToken)
     {
         var c = await repository.ObterPorIdAsync(request.Id, cancellationToken);
-        return c is null ? null : new(c.Id, c.Nome, c.Email, c.Telefone, c.CanalPreferencial, c.Tags, c.CreatedAt, c.UpdatedAt);
+        return c is null ? null : new(c.Id, c.Nome, c.Email, c.Telefone, c.CanalPreferencial, c.Tags, c.CriadoEm, c.AtualizadoEm);
     }
 }
