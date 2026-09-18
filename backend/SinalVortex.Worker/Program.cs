@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Common.Contexts;
 using SinalVortex.Application.Services;
@@ -69,4 +70,20 @@ builder.Services.AddHostedService<LimpezaNotificacoesWorker>();
 builder.Services.AddHostedService<InboundWebhookWorker>();
 
 var host = builder.Build();
+
+using (var scope = host.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Migrations do banco aplicadas com sucesso.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Não foi possível aplicar as migrations do banco na inicialização do Worker.");
+    }
+}
+
 await host.RunAsync();

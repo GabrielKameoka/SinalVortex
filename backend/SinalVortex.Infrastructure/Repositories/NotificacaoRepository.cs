@@ -31,7 +31,7 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
     public async Task<int> RemoverNotificacoesAntigasAsync(DateTime dataCorte, CancellationToken cancellationToken = default)
     {
         return await context.Notificacoes
-            .Where(n => n.CreatedAt < dataCorte && (n.Status == StatusNotificacao.Enviado || n.Status == StatusNotificacao.Dlq))
+            .Where(n => n.CriadoEm < dataCorte && (n.Status == StatusNotificacao.Enviado || n.Status == StatusNotificacao.Dlq))
             .ExecuteDeleteAsync(cancellationToken);
     }
     
@@ -57,7 +57,7 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderByDescending(n => n.CreatedAt)
+            .OrderByDescending(n => n.CriadoEm)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -71,7 +71,7 @@ public class NotificacaoRepository(AppDbContext context) : INotificacaoRepositor
     {
         var query = context.Notificacoes
             .AsNoTracking()
-            .Where(n => n.CreatedAt >= dataInicialUtc);
+            .Where(n => n.CriadoEm >= dataInicialUtc);
 
         var summary = await query
             .GroupBy(_ => 1)
