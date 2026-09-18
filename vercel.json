@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "angular",
-  "installCommand": "if [ -f frontend/package.json ]; then npm ci --prefix frontend; else npm ci; fi",
-  "buildCommand": "if [ -f frontend/package.json ]; then npm run build --prefix frontend -- --configuration production; else npm run build -- --configuration production; fi",
-  "outputDirectory": "frontend/dist/frontend",
+  "installCommand": "cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm run build -- --configuration production",
+  "outputDirectory": "frontend/dist/frontend/browser",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
