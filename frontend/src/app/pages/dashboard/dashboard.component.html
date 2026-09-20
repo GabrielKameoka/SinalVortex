@@ -5,9 +5,15 @@
     </div>
     <div class="top-actions">
       <a class="inbox-link" routerLink="/inbox">Inbox</a>
-      <button class="icon-button" (click)="theme.toggle()"
-        [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">
-        {{ theme.theme() === 'dark' ? '☼' : '☾' }}
+      <a class="inbox-link" routerLink="/monitor-filas">Filas</a>
+      <button
+        class="icon-button"
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+        "
+      >
+        {{ theme.theme() === "dark" ? "☼" : "☾" }}
       </button>
       <button class="profile-button" (click)="logout()">Sair</button>
     </div>
@@ -18,21 +24,38 @@
       <h1>Notificações</h1>
       <p class="muted">Últimas 24 horas</p>
     </div>
-    <button class="refresh-button" (click)="refresh()" [disabled]="refreshing || loading">
+    <button
+      class="refresh-button"
+      (click)="refresh()"
+      [disabled]="refreshing || loading"
+    >
       <span aria-hidden="true" [class.spin]="refreshing">↻</span>
-      {{ refreshing ? 'Atualizando…' : 'Atualizar' }}
+      {{ refreshing ? "Atualizando…" : "Atualizar" }}
     </button>
   </section>
 
   <p class="alert" *ngIf="error" role="status">{{ error }}</p>
 
-  <section class="metric-grid" aria-label="Carregando indicadores" aria-busy="true" *ngIf="loading">
-    <article class="metric-card skeleton" *ngFor="let card of [1, 2, 3]" aria-hidden="true">
+  <section
+    class="metric-grid"
+    aria-label="Carregando indicadores"
+    aria-busy="true"
+    *ngIf="loading"
+  >
+    <article
+      class="metric-card skeleton"
+      *ngFor="let card of [1, 2, 3]"
+      aria-hidden="true"
+    >
       <span></span><span></span>
     </article>
   </section>
 
-  <section class="metric-grid" aria-label="Indicadores das últimas 24 horas" *ngIf="metrics as data">
+  <section
+    class="metric-grid"
+    aria-label="Indicadores das últimas 24 horas"
+    *ngIf="metrics as data"
+  >
     <article class="metric-card">
       <h2 class="metric-head">Criadas</h2>
       <strong>{{ data.total | number }}</strong>
@@ -49,14 +72,26 @@
 
   <section class="chart-card" *ngIf="loading || metrics">
     <h2>Notificações por canal</h2>
-    <div class="chart-skeleton" *ngIf="loading; else channelData" aria-label="Carregando gráfico"></div>
+    <div
+      class="chart-skeleton"
+      *ngIf="loading; else channelData"
+      aria-label="Carregando gráfico"
+    ></div>
     <ng-template #channelData>
       <div class="chart-wrap" *ngIf="metrics?.total; else emptyChannels">
-        <canvas baseChart [data]="doughnutData" [options]="doughnutOptions" type="doughnut"
-          role="img" aria-label="Distribuição de notificações por canal"></canvas>
+        <canvas
+          baseChart
+          [data]="doughnutData"
+          [options]="doughnutOptions"
+          type="doughnut"
+          role="img"
+          aria-label="Distribuição de notificações por canal"
+        ></canvas>
       </div>
       <ng-template #emptyChannels>
-        <p class="empty-state">Nenhuma notificação criada nas últimas 24 horas.</p>
+        <p class="empty-state">
+          Nenhuma notificação criada nas últimas 24 horas.
+        </p>
       </ng-template>
     </ng-template>
   </section>

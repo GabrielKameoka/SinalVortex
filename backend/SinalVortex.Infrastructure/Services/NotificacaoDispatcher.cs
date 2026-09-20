@@ -30,7 +30,7 @@ public class NotificacaoDispatcher : INotificacaoDispatcher
         }
         else
         {
-            _logger.LogWarning("Nenhum serviço encontrado para o canal {Canal}", item.Canal);
+            throw new SinalVortex.Domain.Exceptions.PermanentChannelException($"Nenhum provedor registrado para o canal {item.Canal}.");
         }
     }
 }

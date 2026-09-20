@@ -16,7 +16,8 @@ using SinalVortex.Infrastructure.Telemetry;
 
 public class SignalProcessingWorker(
     IServiceProvider serviceProvider, 
-    ILogger<SignalProcessingWorker> logger) : BackgroundService
+    ILogger<SignalProcessingWorker> logger,
+    QueueMonitorPublisher queueMonitor) : BackgroundService
 {
     private readonly string[] _filas = ["notificacoes:fila:alta", "notificacoes:fila:normal", "notificacoes:fila:baixa"];
     private const string FilaDlqKey = "notificacoes:fila:dlq";
@@ -39,6 +40,8 @@ public class SignalProcessingWorker(
                 if (item != null)
                 {
                     encontrouItem = true;
+
+                    await queueMonitor.PublishAsync(item.TenantId, "info", $"Worker consumiu a fila {NomeFila(filaKey)} para processar a notificação {item.NotificacaoId}.");
 
                     if (item.TenantId == Guid.Empty)
                     {
@@ -101,6 +104,11 @@ public class SignalProcessingWorker(
             SinalVortexMetrics.TempoProcessamentoMs.Record(stopwatch.ElapsedMilliseconds);
 
             logger.LogInformation("[Sucesso] Notificação ID {Id} enviada em {Ms}ms.", item.NotificacaoId, stopwatch.ElapsedMilliseconds);
+            await queueMonitor.PublishAsync(item.TenantId, "success", $"Notificação {item.NotificacaoId} processada com sucesso em {stopwatch.ElapsedMilliseconds} ms.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (PermanentChannelException ex)
         {
@@ -119,6 +127,8 @@ public class SignalProcessingWorker(
                 await repository.AtualizarAsync(notificacao, cancellationToken);
                 await cacheService.EnqueueAsync(FilaDlqKey, item);
             }
+
+            await queueMonitor.PublishAsync(item.TenantId, "error", $"Notificação {item.NotificacaoId} movida para a DLQ: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -138,6 +148,7 @@ public class SignalProcessingWorker(
                 {
                     logger.LogError("[DLQ Engine] Limite de tentativas atingido para ID {Id}. Movendo para DLQ...", item.NotificacaoId);
                     await cacheService.EnqueueAsync(FilaDlqKey, item);
+                    await queueMonitor.PublishAsync(item.TenantId, "error", $"Notificação {item.NotificacaoId} atingiu o limite de tentativas e foi movida para a DLQ.");
                 }
                 else
                 {
@@ -145,8 +156,11 @@ public class SignalProcessingWorker(
                         item.NotificacaoId, filaOrigemKey, notificacao.Tentativas);
 
                     await cacheService.EnqueueAsync(filaOrigemKey, item);
+                    await queueMonitor.PublishAsync(item.TenantId, "warning", $"Notificação {item.NotificacaoId} retornou à fila {NomeFila(filaOrigemKey)} para nova tentativa.");
                 }
             }
         }
     }
+
+    private static string NomeFila(string key) => key.Split(':').Last();
 }

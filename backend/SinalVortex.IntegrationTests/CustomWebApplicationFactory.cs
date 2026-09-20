@@ -13,6 +13,7 @@ using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
 using SinalVortex.Worker;
+using SinalVortex.Infrastructure.Telemetry;
 using StackExchange.Redis;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -77,9 +78,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll(typeof(INotificacaoService));
 
             // Registra apenas uma vez cada implementação
-            services.AddScoped<INotificacaoService, EmailNotificacaoService>();
-            services.AddScoped<INotificacaoService, SmsNotificacaoService>();
-            services.AddScoped<INotificacaoService, PushNotificacaoService>();
+            // External delivery is substituted only in this isolated test host.
+            // Production drivers are tested separately and never contact real recipients here.
+            foreach (var channel in Enum.GetValues<SinalVortex.Domain.Enums.CanalNotificacao>())
+            {
+                var provider = Substitute.For<INotificacaoService>();
+                provider.Canal.Returns(channel);
+                services.AddSingleton(provider);
+            }
 
             services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 
@@ -87,6 +93,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 
             // Worker
+            services.AddSingleton<QueueMonitorPublisher>();
             services.AddHostedService<SignalProcessingWorker>();
         });
 
