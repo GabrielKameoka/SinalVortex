@@ -62,7 +62,7 @@ public class CriarNotificacaoCommandHandler : IRequestHandler<CriarNotificacaoCo
         return new CriarNotificacaoResultDto(
             notificacao.Id,
             notificacao.Status,
-            notificacao.CreatedAt
+            notificacao.CriadoEm
         );
     }
 }

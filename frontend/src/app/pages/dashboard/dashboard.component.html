@@ -1,1 +1,98 @@
-<main class="dashboard-shell"><header class="topbar"><div class="brand"><span class="brand-mark">SV</span><span>SinalVortex</span></div><div class="top-actions"><button class="icon-button" (click)="theme.toggle()" [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">{{ theme.theme() === 'dark' ? '☼' : '☾' }}</button><button class="profile-button" (click)="logout()">Sair <span>↗</span></button></div></header><section class="intro"><div><p class="eyebrow">Visão executiva</p><h1>Bom dia, operação.</h1><p class="muted">Acompanhe o pulso das suas notificações nas últimas 24 horas.</p></div><button class="refresh-button" (click)="refresh()" [disabled]="refreshing"><span [class.spin]="refreshing">↻</span>{{ refreshing ? 'Atualizando…' : 'Atualizar agora' }}</button></section><p class="alert" *ngIf="error" role="status">{{ error }}</p><section class="metric-grid" aria-label="Indicadores principais" *ngIf="loading; else loadedCards"><article class="metric-card skeleton" *ngFor="let card of [1,2,3,4]"><span></span><span></span><span></span></article></section><ng-template #loadedCards><section class="metric-grid"><article class="metric-card"><div class="metric-head"><span>Total criado</span><span class="metric-icon">↗</span></div><strong>{{ metrics?.total | number }}</strong><small>últimas 24 horas</small></article><article class="metric-card"><div class="metric-head"><span>Entregues</span><span class="metric-icon">✓</span></div><strong>{{ metrics?.delivered | number }}</strong><small class="positive">Processadas com sucesso</small></article><article class="metric-card"><div class="metric-head"><span>Falhas / DLQ</span><span class="metric-icon warning">!</span></div><strong>{{ metrics?.failedOrDlq | number }}</strong><small>Requerem atenção</small></article><article class="metric-card accent-card"><div class="metric-head"><span>Taxa de sucesso</span><span class="metric-icon">%</span></div><strong>{{ metrics?.successRate | number:'1.0-2' }}<em>%</em></strong><small>dos envios terminais</small></article></section></ng-template><section class="content-grid"><article class="chart-card"><div class="card-heading"><div><p class="eyebrow">Canais</p><h2>Distribuição de tráfego</h2></div><span class="live-dot">● ao vivo</span></div><div class="chart-wrap" *ngIf="!loading; else chartSkeleton"><canvas baseChart [data]="doughnutData" [options]="doughnutOptions" type="doughnut"></canvas></div><ng-template #chartSkeleton><div class="chart-skeleton"></div></ng-template></article><article class="insight-card"><p class="eyebrow">Status do sistema</p><h2>Operação estável</h2><p class="muted">Os dados são sincronizados automaticamente a cada 30 segundos.</p><div class="status-line"><span class="status-dot"></span><span>API conectada</span><strong>{{ lastUpdated || '—' }}</strong></div><div class="status-line"><span class="status-dot"></span><span>Janela analisada</span><strong>24h</strong></div></article></section></main>
+<main class="dashboard-shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">SV</span><span>SinalVortex</span>
+    </div>
+    <div class="top-actions">
+      <a class="inbox-link" routerLink="/inbox">Inbox</a>
+      <a class="inbox-link" routerLink="/monitor-filas">Filas</a>
+      <button
+        class="icon-button"
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+        "
+      >
+        {{ theme.theme() === "dark" ? "☼" : "☾" }}
+      </button>
+      <button class="profile-button" (click)="logout()">Sair</button>
+    </div>
+  </header>
+
+  <section class="intro">
+    <div>
+      <h1>Notificações</h1>
+      <p class="muted">Últimas 24 horas</p>
+    </div>
+    <button
+      class="refresh-button"
+      (click)="refresh()"
+      [disabled]="refreshing || loading"
+    >
+      <span aria-hidden="true" [class.spin]="refreshing">↻</span>
+      {{ refreshing ? "Atualizando…" : "Atualizar" }}
+    </button>
+  </section>
+
+  <p class="alert" *ngIf="error" role="status">{{ error }}</p>
+
+  <section
+    class="metric-grid"
+    aria-label="Carregando indicadores"
+    aria-busy="true"
+    *ngIf="loading"
+  >
+    <article
+      class="metric-card skeleton"
+      *ngFor="let card of [1, 2, 3]"
+      aria-hidden="true"
+    >
+      <span></span><span></span>
+    </article>
+  </section>
+
+  <section
+    class="metric-grid"
+    aria-label="Indicadores das últimas 24 horas"
+    *ngIf="metrics as data"
+  >
+    <article class="metric-card">
+      <h2 class="metric-head">Criadas</h2>
+      <strong>{{ data.total | number }}</strong>
+    </article>
+    <article class="metric-card">
+      <h2 class="metric-head">Enviadas</h2>
+      <strong>{{ data.delivered | number }}</strong>
+    </article>
+    <article class="metric-card">
+      <h2 class="metric-head">Falhas / DLQ</h2>
+      <strong>{{ data.failedOrDlq | number }}</strong>
+    </article>
+  </section>
+
+  <section class="chart-card" *ngIf="loading || metrics">
+    <h2>Notificações por canal</h2>
+    <div
+      class="chart-skeleton"
+      *ngIf="loading; else channelData"
+      aria-label="Carregando gráfico"
+    ></div>
+    <ng-template #channelData>
+      <div class="chart-wrap" *ngIf="metrics?.total; else emptyChannels">
+        <canvas
+          baseChart
+          [data]="doughnutData"
+          [options]="doughnutOptions"
+          type="doughnut"
+          role="img"
+          aria-label="Distribuição de notificações por canal"
+        ></canvas>
+      </div>
+      <ng-template #emptyChannels>
+        <p class="empty-state">
+          Nenhuma notificação criada nas últimas 24 horas.
+        </p>
+      </ng-template>
+    </ng-template>
+  </section>
+</main>

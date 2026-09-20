@@ -38,5 +38,5 @@ postgres_data/
 
 # Dependencies
 package-lock.json
+!/frontend/package-lock.json
 yarn.lock
-

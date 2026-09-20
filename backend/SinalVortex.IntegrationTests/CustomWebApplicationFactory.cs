@@ -13,6 +13,7 @@ using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
 using SinalVortex.Worker;
+using SinalVortex.Infrastructure.Telemetry;
 using StackExchange.Redis;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -50,10 +51,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         var redisConn = _redisContainer.GetConnectionString();
         var postgresConn = _postgresContainer.GetConnectionString();
 
-        builder.UseSetting("ConnectionStrings:PostgreSQL", postgresConn);
-        builder.UseSetting("ConnectionStrings:Redis", redisConn);
-        builder.UseSetting("Redis", redisConn);
-        builder.UseSetting("Redis:ConnectionString", redisConn);
+        builder.UseSetting("ConnectionStrings:DefaultConnection", postgresConn);
+        builder.UseSetting("ConnectionStrings:RedisConnection", redisConn);
         builder.UseSetting("Jwt:Issuer", "SinalVortex.Tests");
         builder.UseSetting("Jwt:Audience", "SinalVortex.Tests");
         builder.UseSetting("Jwt:SigningKey", "integration-tests-signing-key-with-at-least-32-bytes");
@@ -79,9 +78,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll(typeof(INotificacaoService));
 
             // Registra apenas uma vez cada implementação
-            services.AddScoped<INotificacaoService, EmailNotificacaoService>();
-            services.AddScoped<INotificacaoService, SmsNotificacaoService>();
-            services.AddScoped<INotificacaoService, PushNotificacaoService>();
+            // External delivery is substituted only in this isolated test host.
+            // Production drivers are tested separately and never contact real recipients here.
+            foreach (var channel in Enum.GetValues<SinalVortex.Domain.Enums.CanalNotificacao>())
+            {
+                var provider = Substitute.For<INotificacaoService>();
+                provider.Canal.Returns(channel);
+                services.AddSingleton(provider);
+            }
 
             services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 
@@ -89,6 +93,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 
             // Worker
+            services.AddSingleton<QueueMonitorPublisher>();
             services.AddHostedService<SignalProcessingWorker>();
         });
 

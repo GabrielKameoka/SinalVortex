@@ -69,7 +69,7 @@ public class NotificacaoDispatcherIntegrationTests : IClassFixture<CustomWebAppl
     }
 
     [Fact]
-    public async Task EnviarAsync_ComCanalInvalidoOuNaoRegistrado_NaoDeveFalhar()
+    public async Task EnviarAsync_ComCanalInvalidoOuNaoRegistrado_DeveFalhar()
     {
         // Arrange
         using var scope = _factory.Services.CreateScope();
@@ -88,6 +88,6 @@ public class NotificacaoDispatcherIntegrationTests : IClassFixture<CustomWebAppl
         // Act & Assert
         var exception = await Record.ExceptionAsync(() => dispatcher.EnviarAsync(item, CancellationToken.None));
 
-        Assert.Null(exception);
+        Assert.IsType<SinalVortex.Domain.Exceptions.PermanentChannelException>(exception);
     }
 }

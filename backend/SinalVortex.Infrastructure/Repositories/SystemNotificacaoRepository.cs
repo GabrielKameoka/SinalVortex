@@ -14,7 +14,7 @@ public sealed class SystemNotificacaoRepository(AppDbContext context) : ISystemN
     public Task<int> RemoverNotificacoesAntigasAsync(DateTime dataCorte, CancellationToken cancellationToken = default) =>
         context.Notificacoes
             .IgnoreQueryFilters()
-            .Where(n => n.CreatedAt < dataCorte &&
+            .Where(n => n.CriadoEm < dataCorte &&
                         (n.Status == StatusNotificacao.Enviado || n.Status == StatusNotificacao.Dlq))
             .ExecuteDeleteAsync(cancellationToken);
 }

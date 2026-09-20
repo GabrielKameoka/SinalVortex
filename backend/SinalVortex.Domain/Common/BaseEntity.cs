@@ -6,13 +6,13 @@ public abstract class BaseEntity
 {
     public Guid Id { get; protected set; }
     public Guid TenantId { get; protected set; }
-    public DateTime CreatedAt { get; protected set; }
-    public DateTime? UpdatedAt { get; protected set; }
+    public DateTime CriadoEm { get; protected set; }
+    public DateTime? AtualizadoEm { get; protected set; }
 
     protected BaseEntity()
     {
         Id = Guid.NewGuid();
-        CreatedAt = DateTime.UtcNow;
+        CriadoEm = DateTime.UtcNow;
     }
 
     protected BaseEntity(Guid tenantId) : this()
@@ -30,6 +30,6 @@ public abstract class BaseEntity
 
     public void Touch()
     {
-        UpdatedAt = DateTime.UtcNow;
+        AtualizadoEm = DateTime.UtcNow;
     }
 }

@@ -1,0 +1,56 @@
+<main class="inbox-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/dashboard"><span class="brand-mark">SV</span><span>SinalVortex</span></a>
+    <div class="top-actions">
+      <a routerLink="/dashboard">Dashboard</a>
+      <a routerLink="/monitor-filas">Filas</a>
+      <button (click)="theme.toggle()" [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">{{ theme.theme() === 'dark' ? '☼' : '☾' }}</button>
+    </div>
+  </header>
+  <section class="heading">
+    <div><p>Notificações da sua organização · atualização a cada 5 segundos</p><h1>Inbox</h1></div>
+    <b *ngIf="page() as data">{{ data.totalCount }} notificações</b>
+  </section>
+  <p *ngIf="loading()" role="status">Carregando notificações…</p>
+  <p *ngIf="error()" role="alert">{{ error() }}</p>
+  <p *ngIf="!loading() && !error() && page()?.totalCount === 0">Nenhuma notificação cadastrada. As notificações criadas pela API aparecerão aqui.</p>
+  <section class="inbox-grid" *ngIf="page() as data" [attr.aria-busy]="loading()">
+    <aside class="conversations">
+      <h2>Notificações</h2>
+      <button *ngFor="let item of data.items" class="conversation" [class.selected]="selected()?.id === item.id" (click)="selectedId.set(item.id)" [attr.aria-pressed]="selected()?.id === item.id">
+        <span><strong>{{ item.destinatario }}</strong><small>{{ item.assunto || item.conteudo }}</small><small>{{ channelLabel(item.canal) }} · {{ statusLabel(item.status) }}</small></span>
+      </button>
+      <nav aria-label="Paginação" *ngIf="data.totalPages > 1">
+        <button [disabled]="!data.hasPreviousPage || loading()" (click)="goTo(data.pageNumber - 1)">Anterior</button>
+        <span>{{ data.pageNumber }} / {{ data.totalPages }}</span>
+        <button [disabled]="!data.hasNextPage || loading()" (click)="goTo(data.pageNumber + 1)">Próxima</button>
+      </nav>
+    </aside>
+    <ng-container *ngIf="selected() as item">
+      <section class="timeline">
+        <header><div><h2>{{ item.destinatario }}</h2><small>{{ channelLabel(item.canal) }}</small></div></header>
+        <div class="events">
+          <div class="day">{{ item.criadoEm | date:'dd/MM/yyyy' }}</div>
+          <article class="message outbound">
+            <strong *ngIf="item.assunto">{{ item.assunto }}</strong>
+            <p>{{ item.conteudo }}</p>
+            <time>{{ item.criadoEm | date:'HH:mm:ss' }}</time>
+          </article>
+        </div>
+      </section>
+      <aside class="crm">
+        <h2>Dados da notificação</h2>
+        <dl>
+          <div><dt>Status registrado</dt><dd>{{ statusLabel(item.status) }}</dd></div>
+          <div><dt>Prioridade</dt><dd>{{ item.prioridade === 3 ? 'Alta' : item.prioridade === 2 ? 'Normal' : 'Baixa' }}</dd></div>
+          <div><dt>Tentativas</dt><dd>{{ item.tentativas }} / {{ item.maxTentativas }}</dd></div>
+          <div><dt>Criada em</dt><dd>{{ item.criadoEm | date:'dd/MM/yyyy HH:mm:ss' }}</dd></div>
+          <div><dt>Processada em</dt><dd>{{ item.processadoEm ? (item.processadoEm | date:'dd/MM/yyyy HH:mm:ss') : 'Ainda não processada' }}</dd></div>
+          <div><dt>ID</dt><dd>{{ item.id }}</dd></div>
+          <div><dt>Aplicação</dt><dd>{{ item.aplicacaoId }}</dd></div>
+        </dl>
+        <p>O status de envio não comprova leitura nem entrega ao destinatário. Não há histórico de respostas disponível nesta API.</p>
+      </aside>
+    </ng-container>
+  </section>
+</main>

@@ -37,6 +37,9 @@ public class NotificacaoConfiguration : IEntityTypeConfiguration<Notificacao>
         builder.Property(n => n.Prioridade)
             .IsRequired();
 
+        builder.Property(n => n.CriadoEm)
+            .IsRequired();
+
         // Configuração do relacionamento 1:N com LogNotificacao usando o campo privado _logs
         builder.HasMany(n => n.Logs)
             .WithOne()
@@ -46,6 +49,6 @@ public class NotificacaoConfiguration : IEntityTypeConfiguration<Notificacao>
         // Índices para otimização de consultas paginadas e por status
         builder.HasIndex(n => n.AplicacaoId);
         builder.HasIndex(n => n.Status);
-        builder.HasIndex(n => n.CreatedAt);
+        builder.HasIndex(n => n.CriadoEm);
     }
 }

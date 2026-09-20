@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Application.Common.Contexts;
 using SinalVortex.Application.Services;
@@ -13,6 +14,7 @@ using SinalVortex.Infrastructure.Services.Webhooks;
 using SinalVortex.Worker;
 using SinalVortex.Worker.Workers;
 using StackExchange.Redis;
+using SinalVortex.Infrastructure.Telemetry;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -51,6 +53,8 @@ builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
 
 // Estratégias de Notificação
+builder.Services.AddHttpClient("notification-webhook", client => client.Timeout = TimeSpan.FromSeconds(15))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, SmsNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, PushNotificacaoService>();
@@ -58,6 +62,7 @@ builder.Services.AddScoped<INotificacaoService, WhatsappNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, WebhookNotificacaoService>();
 
 builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
+builder.Services.AddSingleton<QueueMonitorPublisher>();
 
 // MediatR
 builder.Services.AddMediatR(cfg =>
@@ -69,4 +74,20 @@ builder.Services.AddHostedService<LimpezaNotificacoesWorker>();
 builder.Services.AddHostedService<InboundWebhookWorker>();
 
 var host = builder.Build();
+
+using (var scope = host.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Migrations do banco aplicadas com sucesso.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Não foi possível aplicar as migrations do banco na inicialização do Worker.");
+    }
+}
+
 await host.RunAsync();
