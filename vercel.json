@@ -3,7 +3,7 @@
   "framework": "angular",
   "installCommand": "npm ci --prefix frontend",
   "buildCommand": "npm run build --prefix frontend -- --configuration production",
-  "outputDirectory": "frontend/dist/frontend",
+  "outputDirectory": "frontend/dist/frontend/browser",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
