@@ -11,13 +11,13 @@ public sealed class QueueMonitorHub(IConnectionMultiplexer redis) : Hub
     public override async Task OnConnectedAsync()
     {
         var tenantId = Context.User?.FindFirst("tenant_id")?.Value;
-        if (!Guid.TryParse(tenantId, out _))
+        if (!Guid.TryParse(tenantId, out var tenant))
         {
             Context.Abort();
             return;
         }
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, TenantGroup(tenantId));
+        await Groups.AddToGroupAsync(Context.ConnectionId, TenantGroup(tenant.ToString()));
         await base.OnConnectedAsync();
     }
 

@@ -1,75 +1,54 @@
-namespace SinalVortex.Infrastructure.Services.Notificacoes;
-
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Exceptions;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using System.Net;
+using System.Net.Mail;
 
-public class EmailNotificacaoService : INotificacaoService
+namespace SinalVortex.Infrastructure.Services.Notificacoes;
+
+public sealed class EmailNotificacaoService(IConfiguration configuration) : INotificacaoService
 {
-    private readonly ILogger<EmailNotificacaoService> _logger;
-    private readonly IConfiguration _configuration;
-    private readonly IEmailResiliencePolicy _resiliencePolicy;
-
     public CanalNotificacao Canal => CanalNotificacao.Email;
-
-    public EmailNotificacaoService(
-        ILogger<EmailNotificacaoService> logger, 
-        IConfiguration configuration,
-        IEmailResiliencePolicy resiliencePolicy)
-    {
-        _logger = logger;
-        _configuration = configuration;
-        _resiliencePolicy = resiliencePolicy;
-    }
 
     public async Task EnviarAsync(NotificacaoFilaItemDto item, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(item.Destinatario) || !item.Destinatario.Contains('@'))
-        {
-            _logger.LogError("[Email Service] Endereço de e-mail inválido: {Destinatario}", item.Destinatario);
-            throw new PermanentChannelException($"Endereço de e-mail malformado: {item.Destinatario}");
-        }
-
+        cancellationToken.ThrowIfCancellationRequested();
+        var host = configuration["EmailSettings:SmtpHost"];
+        var from = configuration["EmailSettings:From"];
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(from))
+            throw new PermanentChannelException("SMTP não configurado: informe EmailSettings:SmtpHost e EmailSettings:From.");
+        using var message = new MailMessage();
         try
         {
-            await _resiliencePolicy.Pipeline.ExecuteAsync(async ct =>
-            {
-                await TentarEnviarPrimarioAsync(item, ct);
-            }, cancellationToken);
+            message.From = new MailAddress(from);
+            message.To.Add(new MailAddress(item.Destinatario));
         }
-        catch (Exception ex) when (ex is not PermanentChannelException)
+        catch (FormatException)
         {
-            _logger.LogWarning(ex, "[Fallback Email] Primário falhou para {Destinatario}. Tentando secundário...", item.Destinatario);
-
-            bool falharSecundario = _configuration.GetValue<bool>("EmailSettings:SimularFalhaSecundario");
-
-            if (falharSecundario)
-            {
-                _logger.LogError("[Fallback Email] Ambos os provedores de e-mail falharam para {Destinatario}", item.Destinatario);
-                throw new TransientChannelException("Ambos os provedores de e-mail estão indisponíveis.", ex);
-            }
-
-            _logger.LogInformation("[Fallback Email] Enviado via Provedor Secundário para {Destinatario}", item.Destinatario);
+            throw new PermanentChannelException("Endereço de e-mail do remetente ou destinatário inválido.");
         }
-    }
-
-    private async Task TentarEnviarPrimarioAsync(NotificacaoFilaItemDto item, CancellationToken cancellationToken)
-    {
-        await Task.Delay(100, cancellationToken);
-
-        bool simularFalhaPrimario = _configuration.GetValue<bool>("EmailSettings:SimularFalhaPrimario");
-
-        if (simularFalhaPrimario || item.Destinatario.EndsWith("@error.com", StringComparison.OrdinalIgnoreCase))
+        message.Subject = item.Assunto ?? string.Empty;
+        message.Body = item.Conteudo;
+        message.IsBodyHtml = false;
+        using var smtp = new SmtpClient(host, configuration.GetValue("EmailSettings:SmtpPort", 587))
         {
-            throw new TransientChannelException("Falha de comunicação/timeout no provedor principal de e-mail.");
+            EnableSsl = configuration.GetValue("EmailSettings:EnableSsl", true),
+            UseDefaultCredentials = false
+        };
+        var username = configuration["EmailSettings:Username"];
+        if (!string.IsNullOrWhiteSpace(username))
+            smtp.Credentials = new NetworkCredential(username, configuration["EmailSettings:Password"]);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        try
+        {
+            await smtp.SendMailAsync(message, timeout.Token);
         }
-
-        _logger.LogInformation("[SinalVortex - EMAIL] Enviado com sucesso. Assunto: {Assunto} | Para: {Destinatario}", item.Assunto, item.Destinatario);
+        catch (SmtpException exception) when ((int)exception.StatusCode >= 500)
+        {
+            throw new PermanentChannelException($"SMTP recusou o envio ({exception.StatusCode}).");
+        }
     }
 }

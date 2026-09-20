@@ -106,6 +106,10 @@ public class SignalProcessingWorker(
             logger.LogInformation("[Sucesso] Notificação ID {Id} enviada em {Ms}ms.", item.NotificacaoId, stopwatch.ElapsedMilliseconds);
             await queueMonitor.PublishAsync(item.TenantId, "success", $"Notificação {item.NotificacaoId} processada com sucesso em {stopwatch.ElapsedMilliseconds} ms.");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (PermanentChannelException ex)
         {
             stopwatch.Stop();

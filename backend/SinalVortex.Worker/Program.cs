@@ -14,6 +14,7 @@ using SinalVortex.Infrastructure.Services.Webhooks;
 using SinalVortex.Worker;
 using SinalVortex.Worker.Workers;
 using StackExchange.Redis;
+using SinalVortex.Infrastructure.Telemetry;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -52,6 +53,8 @@ builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
 
 // Estratégias de Notificação
+builder.Services.AddHttpClient("notification-webhook", client => client.Timeout = TimeSpan.FromSeconds(15))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, SmsNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, PushNotificacaoService>();

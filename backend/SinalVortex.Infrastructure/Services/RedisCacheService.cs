@@ -3,6 +3,8 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Common.Interfaces;
 using StackExchange.Redis;
+using SinalVortex.Application.Commands.Notificacoes;
+using SinalVortex.Infrastructure.Telemetry;
 
 namespace SinalVortex.Infrastructure.Services;
 
@@ -15,6 +17,7 @@ public class RedisCacheService : ICacheService
     private readonly IDistributedCache _distributedCache;
     private readonly IConnectionMultiplexer _redis;
     private readonly ILogger<RedisCacheService> _logger;
+    private readonly QueueMonitorPublisher _monitor;
 
     /// <param name="distributedCache">Provedor de cache distribuído nativo do .NET (IDistributedCache).</param>
     /// <param name="redis">Gerenciador de conexões multiplexadas com o servidor Redis (StackExchange.Redis).</param>
@@ -22,11 +25,13 @@ public class RedisCacheService : ICacheService
     public RedisCacheService(
         IDistributedCache distributedCache, 
         IConnectionMultiplexer redis,
-        ILogger<RedisCacheService> logger)
+        ILogger<RedisCacheService> logger,
+        QueueMonitorPublisher monitor)
     {
         _distributedCache = distributedCache;
         _redis = redis;
         _logger = logger;
+        _monitor = monitor;
     }
 
     /// <summary>
@@ -88,6 +93,9 @@ public class RedisCacheService : ICacheService
         var db = _redis.GetDatabase();
         var json = JsonSerializer.Serialize(item);
         await db.ListLeftPushAsync(queueName, json);
+        if (item is NotificacaoFilaItemDto notification && queueName.StartsWith("notificacoes:fila:"))
+            await _monitor.PublishAsync(notification.TenantId, "info",
+                $"Notificação {notification.NotificacaoId} adicionada à fila {queueName.Split(':').Last()}.");
     }
 
     /// <summary>

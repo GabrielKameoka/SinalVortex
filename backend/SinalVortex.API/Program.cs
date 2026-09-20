@@ -21,6 +21,7 @@ using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
 using SinalVortex.Infrastructure.Services.Webhooks;
 using StackExchange.Redis;
+using SinalVortex.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,6 +77,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<QueueMonitorPublisher>();
 builder.Services.AddHostedService<QueueMonitorRelayService>();
 
 var serverUrl = builder.Environment.IsDevelopment()
@@ -224,7 +226,7 @@ app.UseAuthentication();
 app.UseMiddleware<TenantResolverMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHub<QueueMonitorHub>("/hubs/queue-monitor");
+app.MapHub<QueueMonitorHub>("/hubs/queue-monitor", options => options.CloseOnAuthenticationExpiration = true);
 
 app.Run();
 

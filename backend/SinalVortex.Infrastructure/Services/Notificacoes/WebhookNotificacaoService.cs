@@ -1,34 +1,34 @@
-namespace SinalVortex.Infrastructure.Services.Notificacoes;
-
-using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
+using Microsoft.Extensions.Configuration;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Enums;
 using SinalVortex.Domain.Exceptions;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
-public class WebhookNotificacaoService : INotificacaoService
+namespace SinalVortex.Infrastructure.Services.Notificacoes;
+
+public sealed class WebhookNotificacaoService(IHttpClientFactory clients, IConfiguration configuration) : INotificacaoService
 {
-    private readonly ILogger<WebhookNotificacaoService> _logger;
-
     public CanalNotificacao Canal => CanalNotificacao.Webhook;
-
-    public WebhookNotificacaoService(ILogger<WebhookNotificacaoService> logger) => _logger = logger;
 
     public async Task EnviarAsync(NotificacaoFilaItemDto item, CancellationToken cancellationToken)
     {
-        if (!Uri.TryCreate(item.Destinatario, UriKind.Absolute, out _))
+        var allowed = configuration.GetSection("WebhookSettings:AllowedOrigins").Get<string[]>() ?? [];
+        if (!Uri.TryCreate(item.Destinatario, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo) ||
+            !allowed.Contains(uri.GetLeftPart(UriPartial.Authority), StringComparer.OrdinalIgnoreCase))
+            throw new PermanentChannelException("Destino Webhook não autorizado. Configure sua origem HTTPS em WebhookSettings:AllowedOrigins.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uri)
         {
-            _logger.LogError("[Webhook Service] URL de destino inválida: {Destinatario}", item.Destinatario);
-            throw new PermanentChannelException($"Endpoint Webhook malformado: {item.Destinatario}");
-        }
-
-        _logger.LogInformation("[Webhook Service] Disparando POST para {Destinatario}", item.Destinatario);
-        
-        await Task.Delay(80, cancellationToken);
-
-        _logger.LogInformation("[Webhook Service] HTTP 200 OK recebido de {Destinatario}", item.Destinatario);
+            Content = JsonContent.Create(new { item.NotificacaoId, item.Assunto, item.Conteudo })
+        };
+        request.Headers.TryAddWithoutValidation("Idempotency-Key", item.NotificacaoId.ToString());
+        using var response = await clients.CreateClient("notification-webhook").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.IsSuccessStatusCode) return;
+        var status = (int)response.StatusCode;
+        if (status >= 500 || status is 408 or 429)
+            throw new TransientChannelException($"Webhook temporariamente indisponível (HTTP {status}).");
+        throw new PermanentChannelException($"Webhook recusado (HTTP {status}).");
     }
 }

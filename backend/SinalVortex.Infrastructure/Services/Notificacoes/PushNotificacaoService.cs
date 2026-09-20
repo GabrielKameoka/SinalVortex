@@ -1,22 +1,17 @@
-namespace SinalVortex.Infrastructure.Services.Notificacoes;
-
-using System;
-using Microsoft.Extensions.Logging;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Common.Interfaces;
 using SinalVortex.Domain.Enums;
+using SinalVortex.Domain.Exceptions;
 
-public class PushNotificacaoService : INotificacaoService
+namespace SinalVortex.Infrastructure.Services.Notificacoes;
+
+public sealed class PushNotificacaoService : INotificacaoService
 {
-    private readonly ILogger<PushNotificacaoService> _logger;
-
     public CanalNotificacao Canal => CanalNotificacao.Push;
 
-    public PushNotificacaoService(ILogger<PushNotificacaoService> logger) => _logger = logger;
-
-    public async Task EnviarAsync(NotificacaoFilaItemDto item, CancellationToken cancellationToken)
+    public Task EnviarAsync(NotificacaoFilaItemDto item, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("[Push Service] Disparando Push Notification para token: {Destinatario}", item.Destinatario);
-        await Task.Delay(50, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new PermanentChannelException("Envio de Push indisponível: integração real do provedor ainda não configurada.");
     }
 }

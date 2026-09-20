@@ -1,32 +1,78 @@
 <main class="monitor-shell">
   <header class="topbar">
-    <a class="brand" routerLink="/dashboard"><span class="brand-mark">SV</span><span>SinalVortex</span></a>
+    <a class="brand" routerLink="/dashboard"
+      ><span class="brand-mark">SV</span><span>SinalVortex</span></a
+    >
     <div class="top-actions">
       <a class="inbox-link" routerLink="/inbox">Inbox</a>
       <a class="inbox-link" routerLink="/dashboard">Dashboard</a>
-      <button class="icon-button" (click)="theme.toggle()" [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">{{ theme.theme() === 'dark' ? '☼' : '☾' }}</button>
+      <button
+        class="icon-button"
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+        "
+      >
+        {{ theme.theme() === "dark" ? "☼" : "☾" }}
+      </button>
       <button class="profile-button" (click)="logout()">Sair</button>
     </div>
   </header>
 
   <section class="intro">
-    <div><p class="eyebrow">OPERAÇÃO EM TEMPO REAL</p><h1>Monitor de filas</h1><p class="muted">Acompanhe os Workers consumindo as filas do Redis.</p></div>
-    <span class="connection" [class.offline]="!monitor.connected()"><i></i>{{ monitor.connected() ? 'Conectado ao SignalR' : 'Reconectando ao SignalR' }}</span>
+    <div>
+      <p class="eyebrow">OPERAÇÃO EM TEMPO REAL</p>
+      <h1>Monitor de filas</h1>
+      <p class="muted">Tamanhos reais das filas compartilhadas do Redis. Os eventos abaixo pertencem à sua organização.</p>
+    </div>
+    <span class="connection" [class.offline]="!monitor.connected()"
+      ><i></i
+      >{{
+        monitor.connected() ? "Conectado ao SignalR" : "Sem conexão"
+      }}</span
+    >
   </section>
 
-  <section class="queue-grid" aria-label="Filas de mensageria">
-    <article class="queue-card" *ngFor="let queue of queueCards" [class]="'queue-card ' + queue.tone">
-      <div><p>{{ queue.label }}</p><span>{{ queue.detail }}</span></div>
-      <strong [class.attention]="queue.key === 'dlq' && count(queue.key) > 0">{{ count(queue.key) | number }}</strong>
-      <div class="queue-bar"><i [style.width.%]="count(queue.key) > 0 ? 100 : 0"></i></div>
+  <p *ngIf="monitor.error()" role="status">{{ monitor.error() }}</p>
+  <section class="queue-grid" aria-label="Filas de mensageria" [attr.aria-busy]="!monitor.loaded()">
+    <article
+      class="queue-card"
+      *ngFor="let queue of queueCards"
+      [class]="'queue-card ' + queue.tone"
+    >
+      <div>
+        <p>{{ queue.label }}</p>
+        <span>{{ queue.detail }}</span>
+      </div>
+      <strong [class.attention]="queue.key === 'dlq' && count(queue.key) > 0">
+        <sv-queue-count [value]="monitor.loaded() ? count(queue.key) : null" />
+      </strong>
+      <div class="queue-bar">
+        <i [style.width.%]="count(queue.key) > 0 ? 100 : 0"></i>
+      </div>
     </article>
   </section>
 
   <section class="feed-card" aria-live="polite">
-    <div class="feed-title"><div><p class="eyebrow">ATIVIDADE</p><h2>Logs dos Workers</h2></div><span>{{ monitor.logs().length }} eventos recentes</span></div>
-    <div class="empty-feed" *ngIf="!monitor.logs().length"><span>⌁</span><p>Aguardando atividade nas filas…</p><small>Os eventos aparecem automaticamente, sem recarregar esta página.</small></div>
+    <div class="feed-title">
+      <div>
+        <p class="eyebrow">ATIVIDADE</p>
+        <h2>Eventos das filas e Workers</h2>
+      </div>
+      <span>{{ monitor.logs().length }} eventos recentes</span>
+    </div>
+    <div class="empty-feed" *ngIf="!monitor.logs().length">
+      <span>⌁</span>
+      <p>Aguardando atividade nas filas…</p>
+      <small
+        >Eventos recebidos desde a conexão, até os 50 mais recentes. Mensagens já na fila não geram logs retroativos.</small
+      >
+    </div>
     <ol class="log-feed" *ngIf="monitor.logs().length">
-      <li *ngFor="let log of monitor.logs()" [class]="log.level"><i></i><time>{{ log.occurredAtUtc | date:'HH:mm:ss' }}</time><p>{{ log.message }}</p></li>
+      <li *ngFor="let log of monitor.logs()" [class]="log.level">
+        <i></i><time>{{ log.occurredAtUtc | date: "HH:mm:ss" }}</time>
+        <p>{{ log.message }}</p>
+      </li>
     </ol>
   </section>
 </main>

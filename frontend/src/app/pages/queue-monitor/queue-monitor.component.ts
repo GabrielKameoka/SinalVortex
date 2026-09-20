@@ -4,9 +4,11 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 import { QueueMonitorService } from '../../services/queue-monitor.service';
+import { QueueCountComponent } from './queue-count.component';
 
 @Component({
-  selector: 'sv-queue-monitor', standalone: true, imports: [CommonModule, RouterLink, DatePipe],
+  selector: 'sv-queue-monitor', standalone: true, imports: [CommonModule, RouterLink, DatePipe, QueueCountComponent],
+  providers: [QueueMonitorService],
   templateUrl: './queue-monitor.component.html', styleUrl: './queue-monitor.component.scss'
 })
 export class QueueMonitorComponent implements OnInit, OnDestroy {
@@ -14,7 +16,7 @@ export class QueueMonitorComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   readonly theme = inject(ThemeService);
   readonly queueCards = [
-    { key: 'high', label: 'Alta prioridade', detail: 'Processamento imediato', tone: 'high' },
+    { key: 'high', label: 'Alta prioridade', detail: 'Preferência no consumo', tone: 'high' },
     { key: 'normal', label: 'Prioridade normal', detail: 'Fluxo padrão', tone: 'normal' },
     { key: 'low', label: 'Baixa prioridade', detail: 'Processamento assíncrono', tone: 'low' },
     { key: 'dlq', label: 'DLQ', detail: 'Exigem atenção', tone: 'dlq' }
