@@ -4,3 +4,4 @@
 .tenant-id { overflow-wrap: anywhere; }
 .intro > div { min-width: 0; }
 @media (max-width: 560px) { .topbar { flex-wrap: wrap; gap: 16px; } }
+@media (max-width: 560px) { .top-actions { width:100%; justify-content:flex-start; flex-wrap:wrap; gap:6px; } .top-actions > a { flex:1 1 auto; text-align:center; } .chart-card { padding:20px; } }

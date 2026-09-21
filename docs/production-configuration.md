@@ -1,3 +1,5 @@
+> Para demonstração sem serviços externos, use a [stack local completa](local-demo.md).
+
 # Configuração de produção
 
 ## Login e CORS

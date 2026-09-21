@@ -2,6 +2,26 @@
 
 Plataforma para processamento e despacho assíncrono de notificações com filas por prioridade, retentativas imediatas limitadas, DLQ e telemetria. E-mail SMTP e Webhook possuem transporte implementado; WhatsApp, SMS e Push ainda dependem de integração com provedores.
 
+## Demonstração local completa
+
+Requer Docker com Compose. Na raiz do repositório:
+
+```sh
+docker compose -f docker-compose.local.yml up --build
+```
+
+Abra [Angular](http://localhost:4200), registre uma conta e use **Nova notificação**.
+Acompanhe o status no inbox, os eventos no monitor de filas e a captura SMTP no
+[Mailpit](http://localhost:8025). A [saúde da API](http://localhost:5287/health) fica na porta 5287.
+
+API e Worker executam em containers separados com PostgreSQL e Redis compartilhados.
+Não é necessário criar `.env`, instalar Node/.NET no host, configurar Railway, domínio
+ou contratar SMTP. Mailpit é um sandbox local: não entrega e-mails a destinatários reais.
+WhatsApp, SMS e Push demonstram falha/DLQ porque ainda não possuem provedores.
+
+Veja o [roteiro completo, persistência e testes](docs/local-demo.md).
+A [configuração de produção/Railway](docs/production-configuration.md) continua disponível como caminho separado.
+
 ## Executar e investigar envios
 
 - [Envio de e-mail local com Mailpit](docs/real-delivery.md#desenvolvimento-local-com-mailpit)
@@ -30,7 +50,7 @@ SinalVortex/
 
 ## ⚙️ Tech Stack
 - **.NET 10** (API + Worker)
-- **PostgreSQL** 16 (persistência)
+- **PostgreSQL** 17 (persistência)
 - **Redis 7** (filas e cache)
 - **Angular 19** (frontend/admin UI)
 - **Testcontainers** (integração e testes efêmeros)

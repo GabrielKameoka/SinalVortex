@@ -1,3 +1,5 @@
+> Para demonstração sem serviços externos, use a [stack local completa](local-demo.md).
+
 # Dados e envios reais
 
 A Inbox usa GET /api/v1/notificacoes, com paginação e atualização a cada 5 segundos. Não contém conversas, contatos, tags, respostas ou contadores não lidos de demonstração. O dashboard já usa a API. Registros históricos podem ter sido marcados como enviados pelos drivers simulados antigos: não foram apagados nem reclassificados.
