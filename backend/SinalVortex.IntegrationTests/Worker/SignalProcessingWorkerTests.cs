@@ -1,183 +1,106 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SinalVortex.Application.Commands.Notificacoes;
+using SinalVortex.Application.Common.Interfaces;
+using SinalVortex.Domain.Enums;
+using SinalVortex.Infrastructure.Persistence;
+using SinalVortex.Infrastructure.Services.Notificacoes;
+using SinalVortex.IntegrationTests.Support;
+using StackExchange.Redis;
 
 namespace SinalVortex.IntegrationTests.Worker;
 
-using Microsoft.Extensions.Logging;
-using NSubstitute;
-using NSubstitute.ExceptionExtensions;
-using SinalVortex.Application.Common.Interfaces;
-using SinalVortex.Application.Dtos; // <-- Namespace adicionado para resolver NotificacaoFilaItemDto
-using SinalVortex.Domain.Entities;
-using SinalVortex.Domain.Enums;
-using SinalVortex.Domain.Exceptions;
-using SinalVortex.Domain.Models;
-using SinalVortex.Domain.ValueObjects;
-using SinalVortex.Worker;
-using Xunit;
-
-public class SignalProcessingWorkerTests
+public class SignalProcessingWorkerTests(CustomWebApplicationFactory factory)
+    : IClassFixture<CustomWebApplicationFactory>
 {
-    private readonly INotificacaoRepository _repository;
-    private readonly INotificacaoDispatcher _dispatcher;
-    private readonly ICacheService _cacheService;
-    private readonly ILogger<SignalProcessingWorker> _logger;
-
-    public SignalProcessingWorkerTests()
+    [Theory]
+    [InlineData(250, PrioridadeNotificacao.Baixa, false, CanalNotificacao.Email, StatusNotificacao.Enviado, 1)]
+    [InlineData(250, PrioridadeNotificacao.Normal, false, CanalNotificacao.Email, StatusNotificacao.Enviado, 1)]
+    [InlineData(250, PrioridadeNotificacao.Alta, false, CanalNotificacao.Email, StatusNotificacao.Enviado, 1)]
+    [InlineData(250, PrioridadeNotificacao.Normal, true, CanalNotificacao.Email, StatusNotificacao.Dlq, 1)]
+    [InlineData(451, PrioridadeNotificacao.Normal, false, CanalNotificacao.Email, StatusNotificacao.Dlq, 3)]
+    [InlineData(550, PrioridadeNotificacao.Normal, false, CanalNotificacao.Email, StatusNotificacao.Dlq, 1)]
+    [InlineData(250, PrioridadeNotificacao.Normal, false, CanalNotificacao.WhatsApp, StatusNotificacao.Dlq, 1)]
+    public async Task Post_DeveProcessarComWorkerEProvedorReais(
+        int smtpStatus, PrioridadeNotificacao priority, bool missingConfiguration,
+        CanalNotificacao channel, StatusNotificacao expectedStatus, int expectedAttempts)
     {
-        _repository = Substitute.For<INotificacaoRepository>();
-        _dispatcher = Substitute.For<INotificacaoDispatcher>();
-        _cacheService = Substitute.For<ICacheService>();
-        _logger = Substitute.For<ILogger<SignalProcessingWorker>>();
-    }
-
-    [Fact]
-    public async Task ProcessarItemAsync_QuandoOcorrerFalhaPermanente_DeveMoverDiretoParaDlq()
-    {
-        // Arrange
-        var notificacaoId = Guid.NewGuid();
-        var itemDto = CriarItemFilaDto(notificacaoId);
-        var notificacao = CriarNotificacaoDominio(notificacaoId);
-
-        _repository.ObterPorIdAsync(notificacaoId, Arg.Any<CancellationToken>())
-            .Returns(notificacao);
-
-        var excecaoPermanente = new PermanentChannelException("Endereço de e-mail inválido ou inexistente.");
-        _dispatcher.EnviarAsync(itemDto, Arg.Any<CancellationToken>())
-            .Throws(excecaoPermanente);
-
-        // Act
-        await ExecutarProcessamentoItemAsync(itemDto);
-
-        // Assert
-        Assert.Equal(StatusNotificacao.Dlq, notificacao.Status);
-        await _repository.Received(1).AtualizarAsync(notificacao, Arg.Any<CancellationToken>());
-        await _cacheService.Received(1).EnqueueAsync(
-            Arg.Is<string>(key => key.Contains("dlq")), 
-            itemDto);
-    }
-
-    [Fact]
-    public async Task ProcessarItemAsync_QuandoOcorrerFalhaTransiente_DeveRegistrarFalhaEReenfileirarParaRetry()
-    {
-        // Arrange
-        var notificacaoId = Guid.NewGuid();
-        var itemDto = CriarItemFilaDto(notificacaoId);
-        var notificacao = CriarNotificacaoDominio(notificacaoId);
-
-        _repository.ObterPorIdAsync(notificacaoId, Arg.Any<CancellationToken>())
-            .Returns(notificacao);
-
-        var excecaoTransiente = new TimeoutException("Timeout na conexão com o gateway HTTP.");
-        _dispatcher.EnviarAsync(itemDto, Arg.Any<CancellationToken>())
-            .Throws(excecaoTransiente);
-
-        // Act
-        await ExecutarProcessamentoItemAsync(itemDto);
-
-        // Assert
-        Assert.Equal(StatusNotificacao.Falhou, notificacao.Status);
-        await _repository.Received(1).AtualizarAsync(notificacao, Arg.Any<CancellationToken>());
-        await _cacheService.DidNotReceive().EnqueueAsync(
-            Arg.Is<string>(key => key.Contains("dlq")), 
-            Arg.Any<NotificacaoFilaItemDto>());
-
-        await _cacheService.Received(1).EnqueueAsync(
-            Arg.Is<string>(key => !key.Contains("dlq")), 
-            itemDto);
-    }
-
-    [Fact]
-    public async Task ProcessarItemAsync_QuandoExcederMaximoDeTentativas_DeveMoverParaDlq()
-    {
-        // Arrange
-        var notificacaoId = Guid.NewGuid();
-        var itemDto = CriarItemFilaDto(notificacaoId);
-        
-        var notificacao = new Notificacao(
-            tenantId: Guid.NewGuid(),
-            aplicacaoId: Guid.NewGuid(),
-            destinatario: Destinatario.Criar("dev@sinalvortex.com", CanalNotificacao.Email),
-            canal: CanalNotificacao.Email,
-            prioridade: PrioridadeNotificacao.Alta,
-            conteudo: "Teste limite tentativas",
-            maxTentativas: 1
-        );
-
-        _repository.ObterPorIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(notificacao);
-
-        _dispatcher.EnviarAsync(itemDto, Arg.Any<CancellationToken>())
-            .Throws(new HttpRequestException("Erro 503 Service Unavailable"));
-
-        // Act
-        notificacao.IniciarProcessamento();
-        await ExecutarProcessamentoItemAsync(itemDto);
-
-        // Assert
-        Assert.Equal(StatusNotificacao.Dlq, notificacao.Status);
-        await _repository.Received(1).AtualizarAsync(notificacao, Arg.Any<CancellationToken>());
-    }
-
-    // --- Helpers de Teste ---
-
-    private static NotificacaoFilaItemDto CriarItemFilaDto(Guid id) =>
-        new(
-            NotificacaoId: id,
-            AplicacaoId: Guid.NewGuid(),
-            Canal: CanalNotificacao.Email,
-            Prioridade: PrioridadeNotificacao.Alta,
-            Destinatario: "dev@sinalvortex.com",
-            Conteudo: "Conteúdo do SinalVortex",
-            Assunto: "Assunto do E-mail"
-        );
-
-    private static Notificacao CriarNotificacaoDominio(Guid id)
-    {
-        return new Notificacao(
-            tenantId: Guid.NewGuid(),
-            aplicacaoId: Guid.NewGuid(),
-            destinatario: Destinatario.Criar("dev@sinalvortex.com", CanalNotificacao.Email),
-            canal: CanalNotificacao.Email,
-            prioridade: PrioridadeNotificacao.Alta,
-            conteudo: "Conteúdo do SinalVortex",
-            maxTentativas: 3
-        );
-    }
-
-    private async Task ExecutarProcessamentoItemAsync(NotificacaoFilaItemDto item)
-    {
-        var notificacao = await _repository.ObterPorIdAsync(item.NotificacaoId, CancellationToken.None);
-
-        if (notificacao == null) return;
-
-        try
+        await using var smtp = new SmtpTestServer(smtpStatus);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var settings = new Dictionary<string, string?>();
+        if (!missingConfiguration)
         {
-            if (notificacao.Status != StatusNotificacao.EmProcessamento)
-                notificacao.IniciarProcessamento();
-
-            await _dispatcher.EnviarAsync(item, CancellationToken.None);
-            notificacao.MarcarComoEnviado();
-            await _repository.AtualizarAsync(notificacao, CancellationToken.None);
+            settings["EmailSettings:SmtpHost"] = "127.0.0.1";
+            settings["EmailSettings:SmtpPort"] = smtp.Port.ToString();
+            settings["EmailSettings:EnableSsl"] = "false";
+            settings["EmailSettings:From"] = "sender@example.test";
         }
-        catch (PermanentChannelException ex)
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            notificacao.EnviarParaDlq(ex.Message);
-            await _repository.AtualizarAsync(notificacao, CancellationToken.None);
-            await _cacheService.EnqueueAsync("notificacoes:dlq", item);
-        }
-        catch (Exception ex)
+            services.RemoveAll<INotificacaoService>();
+            services.AddScoped<INotificacaoService>(_ => new EmailNotificacaoService(configuration));
+            services.AddScoped<INotificacaoService, WhatsappNotificacaoService>();
+        }));
+        using var client = host.CreateClient();
+        var recipient = channel == CanalNotificacao.Email ? $"worker-{Guid.NewGuid():N}@example.test" : "+5511999999999";
+        var subject = $"SMTP integration {Guid.NewGuid():N}";
+        const string content = "Message transmitted through the real Worker and SMTP transport.";
+        using var response = await client.PostAsJsonAsync("/api/v1/notificacoes", new
         {
-            notificacao.RegistrarFalha(ex.Message);
-            await _repository.AtualizarAsync(notificacao, CancellationToken.None);
+            aplicacaoId = Guid.NewGuid(), destinatario = recipient, canal = channel,
+            prioridade = priority, assunto = subject, conteudo = content
+        }, deadline.Token);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(deadline.Token);
+        var id = created.GetProperty("id").GetGuid();
 
-            if (notificacao.Status == StatusNotificacao.Dlq)
-            {
-                await _cacheService.EnqueueAsync("notificacoes:dlq", item);
-            }
-            else
-            {
-                await _cacheService.EnqueueAsync("notificacoes:fila", item);
-            }
+        JsonElement notification;
+        do
+        {
+            notification = await client.GetFromJsonAsync<JsonElement>($"/api/v1/notificacoes/{id}", deadline.Token);
+            if (notification.GetProperty("status").GetInt32() is (int)StatusNotificacao.Enviado or (int)StatusNotificacao.Dlq) break;
+            await Task.Delay(50, deadline.Token);
+        } while (true);
+
+        Assert.Equal((int)expectedStatus, notification.GetProperty("status").GetInt32());
+        Assert.Equal(expectedAttempts, notification.GetProperty("tentativas").GetInt32());
+        Assert.Equal(missingConfiguration || channel == CanalNotificacao.WhatsApp ? 0 : expectedAttempts, smtp.Attempts);
+
+        var redis = host.Services.GetRequiredService<IConnectionMultiplexer>().GetDatabase();
+        bool inDlq;
+        do
+        {
+            var entries = await redis.ListRangeAsync("notificacoes:fila:dlq");
+            inDlq = entries.Any(entry => JsonSerializer.Deserialize<NotificacaoFilaItemDto>(entry.ToString())!.NotificacaoId == id);
+            if (expectedStatus != StatusNotificacao.Dlq || inDlq) break;
+            await Task.Delay(50, deadline.Token);
+        } while (true);
+        Assert.Equal(expectedStatus == StatusNotificacao.Dlq, inDlq);
+
+        if (expectedStatus == StatusNotificacao.Enviado)
+        {
+            var message = await smtp.Message.WaitAsync(deadline.Token);
+            Assert.Contains(recipient, message);
+            Assert.Contains(subject, message);
+            Assert.Contains(content, message);
+        }
+        else
+        {
+            Assert.False(smtp.Message.IsCompletedSuccessfully);
+            using var scope = host.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var saved = await db.Notificacoes.AsNoTracking().Include(n => n.Logs).SingleAsync(n => n.Id == id, deadline.Token);
+            var reason = missingConfiguration ? "SMTP não configurado"
+                : channel == CanalNotificacao.WhatsApp ? "Envio de WhatsApp indisponível"
+                : smtpStatus == 550 ? "SMTP recusou o envio" : "recipient response";
+            Assert.Contains(saved.Logs, log => log.NovoStatus == StatusNotificacao.Dlq && log.MensagemErro!.Contains(reason));
         }
     }
 }
