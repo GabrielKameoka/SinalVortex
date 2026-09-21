@@ -5,7 +5,7 @@ Pataforma de alto desempenho para processamento e despacho assíncrono de notifi
 ![CI Build](https://github.com/GabrielKameoka/SinalVortex/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)
-![Angular 17](https://img.shields.io/badge/Angular-17-red.svg)
+![Angular 17](https://img.shields.io/badge/Angular-19-red.svg)
 
 ## 📋 Estrutura do Projeto
 
@@ -26,7 +26,7 @@ SinalVortex/
 - **.NET 10** (API + Worker)
 - **PostgreSQL** 16 (persistência)
 - **Redis 7** (filas e cache)
-- **Angular 17** (frontend/admin UI)
+- **Angular 19** (frontend/admin UI)
 - **Testcontainers** (integração e testes efêmeros)
 - **OpenTelemetry** (telemetria e métricas)
 
