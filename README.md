@@ -1,11 +1,17 @@
 # SinalVortex - Monorepo
 
-Pataforma de alto desempenho para processamento e despacho assíncrono de notificações multicanal (Email, SMS, Push, Webhook) com gerenciamento de filas por prioridade, retentativas exponenciais, DLQ e telemetria.
+Plataforma para processamento e despacho assíncrono de notificações com filas por prioridade, retentativas imediatas limitadas, DLQ e telemetria. E-mail SMTP e Webhook possuem transporte implementado; WhatsApp, SMS e Push ainda dependem de integração com provedores.
+
+## Executar e investigar envios
+
+- [Envio de e-mail local com Mailpit](docs/real-delivery.md#desenvolvimento-local-com-mailpit)
+- [Investigação: notificações indo para a DLQ](docs/investigations/notificacoes-dlq.md)
+- [Monitor de filas](docs/queue-monitor.md)
 
 ![CI Build](https://github.com/GabrielKameoka/SinalVortex/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)
-![Angular 17](https://img.shields.io/badge/Angular-17-red.svg)
+![Angular 19](https://img.shields.io/badge/Angular-19-red.svg)
 
 ## 📋 Estrutura do Projeto
 
@@ -19,14 +25,14 @@ SinalVortex/
 │   ├── SinalVortex.Worker/          # Background Worker (Consumidor de Filas)
 │   ├── SinalVortex.IntegrationTests/# Testes de Integração com Testcontainers
 │   └── SinalVortex.slnx             # Solution do C#
-└── frontend/app/                    # Interface de Administração (Angular 17)
+└── frontend/app/                    # Interface de Administração (Angular 19)
 ```
 
 ## ⚙️ Tech Stack
 - **.NET 10** (API + Worker)
 - **PostgreSQL** 16 (persistência)
 - **Redis 7** (filas e cache)
-- **Angular 17** (frontend/admin UI)
+- **Angular 19** (frontend/admin UI)
 - **Testcontainers** (integração e testes efêmeros)
 - **OpenTelemetry** (telemetria e métricas)
 
