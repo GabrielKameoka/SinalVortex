@@ -162,10 +162,10 @@ builder.Services.AddMediatR(cfg =>
 // 8. CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("Frontend", policy =>
     {
         var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-            policy.WithOrigins(origins)
+        policy.WithOrigins(origins)
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
@@ -176,7 +176,7 @@ var app = builder.Build();
 
 // 9. Pipeline Middleware Base
 app.UseMiddleware<ApiExceptionMiddleware>();
-app.UseCors("AllowAll");
+app.UseCors("Frontend");
 
 // 10. Execução de Migrations Pendentes
 using (var scope = app.Services.CreateScope())
