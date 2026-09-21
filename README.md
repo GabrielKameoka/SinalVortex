@@ -1,6 +1,12 @@
 # SinalVortex - Monorepo
 
-Pataforma de alto desempenho para processamento e despacho assíncrono de notificações multicanal (Email, SMS, Push, Webhook) com gerenciamento de filas por prioridade, retentativas exponenciais, DLQ e telemetria.
+Plataforma para processamento e despacho assíncrono de notificações com filas por prioridade, retentativas imediatas limitadas, DLQ e telemetria. E-mail SMTP e Webhook possuem transporte implementado; WhatsApp, SMS e Push ainda dependem de integração com provedores.
+
+## Executar e investigar envios
+
+- [Envio de e-mail local com Mailpit](docs/real-delivery.md#desenvolvimento-local-com-mailpit)
+- [Investigação: notificações indo para a DLQ](docs/investigations/notificacoes-dlq.md)
+- [Monitor de filas](docs/queue-monitor.md)
 
 ![CI Build](https://github.com/GabrielKameoka/SinalVortex/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)

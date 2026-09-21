@@ -65,8 +65,7 @@ builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 builder.Services.AddSingleton<QueueMonitorPublisher>();
 
 // MediatR
-builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(SinalVortex.Application.AssemblyReference).Assembly));
+builder.Services.AddWorkerApplicationHandlers();
 
 // Workers em Segundo Plano
 builder.Services.AddHostedService<SignalProcessingWorker>();
