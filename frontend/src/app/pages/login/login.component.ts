@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 
-@Component({ selector: 'sv-login', standalone: true, imports: [CommonModule, ReactiveFormsModule], templateUrl: './login.component.html', styleUrl: './login.component.scss' })
+@Component({ selector: 'sv-login', standalone: true, imports: [CommonModule, ReactiveFormsModule, RouterLink], templateUrl: './login.component.html', styleUrl: './login.component.scss' })
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
