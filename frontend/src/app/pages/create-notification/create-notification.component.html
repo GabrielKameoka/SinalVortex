@@ -1,0 +1,122 @@
+<main class="create-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/dashboard"
+      ><span class="brand-mark">SV</span><span>SinalVortex</span></a
+    >
+    <div class="top-actions">
+      <a class="inbox-link" routerLink="/inbox">Inbox</a>
+      <a class="inbox-link" routerLink="/monitor-filas">Filas</a>
+      <a class="inbox-link" routerLink="/dashboard">Dashboard</a>
+      <button
+        class="icon-button"
+        type="button"
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+        "
+      >
+        {{ theme.theme() === "dark" ? "☼" : "☾" }}
+      </button>
+    </div>
+  </header>
+  <section class="intro">
+    <div>
+      <p class="eyebrow">DEMONSTRAÇÃO LOCAL</p>
+      <h1>Nova notificação</h1>
+      <p class="muted">
+        Crie uma mensagem e acompanhe o processamento assíncrono pelo Worker.
+      </p>
+    </div>
+  </section>
+  <aside class="notice">
+    No ambiente local com Mailpit, e-mails são capturados em sandbox, sem
+    entrega a destinatários reais. WhatsApp, SMS e Push ainda não possuem
+    provedores e demonstram falha com envio à DLQ.
+  </aside>
+  @if (createdId) {
+    <section class="result-card" role="status">
+      <h2>Notificação criada</h2>
+      <p>
+        ID: <code>{{ createdId }}</code>
+      </p>
+      <p>
+        A criação não confirma o envio. Acompanhe o status no
+        <a routerLink="/inbox">inbox</a> e os eventos no
+        <a routerLink="/monitor-filas">monitor de filas</a>.
+      </p>
+      <p>
+        Para e-mail na stack local, confira a captura no
+        <a href="http://localhost:8025" target="_blank" rel="noopener"
+          >Mailpit</a
+        >.
+      </p>
+      <button type="button" (click)="newNotification()">
+        Criar outra notificação
+      </button>
+    </section>
+  } @else {
+    <form class="form-card" [formGroup]="form" (ngSubmit)="submit()">
+      <fieldset [disabled]="loading" style="width: 100%">
+        <label for="canal">Canal</label>
+        <select id="canal" formControlName="canal">
+          <option [ngValue]="1">E-mail</option>
+          <option [ngValue]="2">WhatsApp (DLQ)</option>
+          <option [ngValue]="3">SMS (DLQ)</option>
+          <option [ngValue]="5">Push (DLQ)</option>
+        </select>
+        <label for="destinatario">Destinatário</label>
+        <input
+          id="destinatario"
+          formControlName="destinatario"
+          [type]="form.controls.canal.value === 1 ? 'email' : 'text'"
+          aria-describedby="recipient-help"
+          required
+        />
+        <small id="recipient-help">{{
+          form.controls.canal.value === 1
+            ? "Exemplo: euemail@example.test"
+            : form.controls.canal.value === 5
+              ? "Token de Push com pelo menos 10 caracteres."
+              : "Telefone com DDD e 10 a 15 dígitos. Exemplo: 5511999999999"
+        }}</small>
+        <label for="prioridade">Prioridade</label>
+        <select id="prioridade" formControlName="prioridade">
+          <option [ngValue]="1">Baixa</option>
+          <option [ngValue]="2">Normal</option>
+          <option [ngValue]="3">Alta</option>
+        </select>
+        <label for="assunto"
+          >Assunto
+          {{
+            form.controls.canal.value === 1 ? "(obrigatório)" : "(opcional)"
+          }}</label
+        >
+        <input id="assunto" formControlName="assunto" maxlength="200" />
+        <label for="conteudo">Conteúdo</label>
+        <textarea
+          id="conteudo"
+          formControlName="conteudo"
+          rows="6"
+          maxlength="4000"
+          required
+        ></textarea>
+        <small
+          >Até 4.000 caracteres. O AplicacaoId é gerado automaticamente como
+          UUID.</small
+        >
+        @if (form.touched && form.invalid) {
+          <p role="alert">
+            Preencha o destinatário e o conteúdo. Para e-mail, informe um
+            endereço válido e um assunto de até 200 caracteres.
+          </p>
+        }
+        <button type="submit">
+          {{ loading ? "Criando…" : "Criar notificação" }}
+        </button>
+      </fieldset>
+      @if (error) {
+        <p role="alert">{{ error }}</p>
+      }
+    </form>
+  }
+</main>

@@ -2,6 +2,7 @@
   <header class="topbar">
     <a class="brand" routerLink="/dashboard"><span class="brand-mark">SV</span><span>SinalVortex</span></a>
     <div class="top-actions">
+      <a class="inbox-link" routerLink="/nova-notificacao">Nova notificação</a>
       <a routerLink="/dashboard">Dashboard</a>
       <a routerLink="/monitor-filas">Filas</a>
       <button (click)="theme.toggle()" [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">{{ theme.theme() === 'dark' ? '☼' : '☾' }}</button>
@@ -13,7 +14,7 @@
   </section>
   <p *ngIf="loading()" role="status">Carregando notificações…</p>
   <p *ngIf="error()" role="alert">{{ error() }}</p>
-  <p *ngIf="!loading() && !error() && page()?.totalCount === 0">Nenhuma notificação cadastrada. As notificações criadas pela API aparecerão aqui.</p>
+  <p *ngIf="!loading() && !error() && page()?.totalCount === 0">Nenhuma notificação cadastrada. Use Nova notificação para criar sua primeira mensagem.</p>
   <section class="inbox-grid" *ngIf="page() as data" [attr.aria-busy]="loading()">
     <aside class="conversations">
       <h2>Notificações</h2>

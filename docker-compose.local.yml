@@ -1,0 +1,87 @@
+name: sinalvortex-local
+
+x-connections: &connections
+  ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=sinalvortex;Username=postgres;Password=local-demo-only
+  ConnectionStrings__RedisConnection: redis:6379
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local-demo-only
+      POSTGRES_DB: sinalvortex
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d sinalvortex]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit@sha256:74d609a42ec279aa63c6b4622a6fa9b5408d1ad5b1d76a1c4be40a265ce0863d
+    ports:
+      - '127.0.0.1:8025:8025'
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.local
+    environment:
+      <<: *connections
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Jwt__SigningKey: local-demo-only-signing-key-never-use-in-production
+      Cors__AllowedOrigins__0: http://localhost:4200
+    ports:
+      - '127.0.0.1:5287:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8080/health]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 20
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.worker
+    environment:
+      <<: *connections
+      DOTNET_ENVIRONMENT: Development
+      EmailSettings__SmtpHost: mailpit
+      EmailSettings__SmtpPort: 1025
+      EmailSettings__EnableSsl: 'false'
+      EmailSettings__From: sinalvortex@example.test
+      EmailSettings__Username: ''
+      EmailSettings__Password: ''
+    depends_on:
+      api:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - '127.0.0.1:4200:4200'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
