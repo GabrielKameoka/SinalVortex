@@ -56,5 +56,5 @@ dotnet test backend/SinalVortex.slnx --configuration Release
 ## Limites e próximos problemas
 
 - WhatsApp, SMS e Push continuam indisponíveis até a implementação de seus provedores. Webhook exige origem HTTPS autorizada.
-- Reprocessamento manual requer correção separada: `ReprocessarNotificacaoDlqCommandHandler` usa `RedisQueueService`, que publica somente um GUID; o Worker consome `NotificacaoFilaItemDto`. Não utilizar esse endpoint como prova desta entrega, nem reprocessar mensagens históricas automaticamente.
+- Mensagens antigas publicadas pelo reprocessamento anterior podem conter somente um GUID e não são compatíveis com o consumidor atual. A branch agora serializa `NotificacaoFilaItemDto` ao reprocessar; itens antigos precisam ser removidos ou tratados manualmente antes de uma validação limpa.
 - Retentativas imediatas podem esgotar o limite rapidamente durante indisponibilidade. Backoff e garantias de entrega da fila ficam para uma evolução própria.

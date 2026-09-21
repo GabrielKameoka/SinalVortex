@@ -30,10 +30,10 @@ Pré-requisitos: .NET 10, Docker com Compose e `curl`. Execute os comandos a par
    ```sh
    export ConnectionStrings__DefaultConnection='Host=127.0.0.1;Port=5433;Database=sinalvortex;Username=postgres;Password=postgres'
    export ConnectionStrings__RedisConnection='127.0.0.1:6379'
-   DOTNET_ENVIRONMENT=Development dotnet run --project backend/SinalVortex.Worker --no-launch-profile
+   dotnet run --project backend/SinalVortex.Worker --launch-profile Development
    ```
 
-   Na IDE, defina `DOTNET_ENVIRONMENT=Development` na configuração de execução do **Worker**, além das duas conexões. O ambiente da API não se propaga para outro processo. O Worker carrega `appsettings.Development.json` com host `127.0.0.1`, porta `1025`, `EnableSsl=false` e remetente `sinalvortex@example.test`. Variáveis `EmailSettings__*` e user-secrets existentes podem sobrescrever esses valores; remova overrides antigos da configuração de execução local. Um arquivo `.env` não é carregado automaticamente pelo .NET.
+   O perfil `Development` do Worker define `DOTNET_ENVIRONMENT` e `ASPNETCORE_ENVIRONMENT` explicitamente. Na IDE, selecione esse perfil ou defina as duas variáveis na configuração de execução, além das conexões. O ambiente da API não se propaga para outro processo. O Worker carrega `appsettings.Development.json` com host `127.0.0.1`, porta `1025`, `EnableSsl=false` e remetente `sinalvortex@example.test`. Confirme no log a linha `Hosting environment: Development`. Variáveis `EmailSettings__*` e user-secrets existentes podem sobrescrever esses valores; remova overrides antigos da configuração de execução local. Um arquivo `.env` não é carregado automaticamente pelo .NET.
 
 4. Cadastre um usuário de teste por `POST /api/v1/autenticacao/registrar`, com `nome`, `email` e `senha`, conforme [cadastro e autenticação](user-registration.md). Guarde o `accessToken` e use-o no POST abaixo. Exemplo em zsh, sem imprimir o token:
 
