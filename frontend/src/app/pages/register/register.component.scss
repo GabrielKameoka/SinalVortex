@@ -1,0 +1,10 @@
+form { gap: 10px; }
+form label:not(:first-child) { margin-top: 6px; }
+small, .footer { color: var(--muted); }
+a { color: var(--accent-strong); }
+.footer { margin-bottom: 0; }
+.tenant-id { display: block; overflow-wrap: anywhere; padding: 16px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 12px; }
+.dashboard-link { text-decoration: none; }
+@media (max-width: 480px) { .login-shell { padding: 16px; } .login-card { padding: 24px; } }
+@media (prefers-reduced-motion: reduce) { .login-card, .spinner { animation: none; } }
+
