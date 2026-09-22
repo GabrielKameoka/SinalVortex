@@ -1,6 +1,9 @@
 # SinalVortex - Monorepo
 
-Plataforma para processamento e despacho assíncrono de notificações com filas por prioridade, retentativas imediatas limitadas, DLQ e telemetria. E-mail SMTP e Webhook possuem transporte implementado; WhatsApp, SMS e Push ainda dependem de integração com provedores.
+Plataforma distribuída de notificações assíncronas com API, Redis, Worker,
+SMTP sandbox, retry, DLQ e monitoramento em tempo real. A demo foi desenhada
+para tornar visível o caminho completo de uma mensagem sem depender de
+provedores pagos.
 
 ## Demonstração local completa
 
@@ -11,7 +14,7 @@ docker compose -f docker-compose.local.yml up --build
 ```
 
 Abra [Angular](http://localhost:4200), registre uma conta e use **Nova notificação**.
-Acompanhe o status no inbox, os eventos no monitor de filas e a captura SMTP no
+Acompanhe o status no Inbox, os eventos no Monitor de filas e a captura SMTP no
 [Mailpit](http://localhost:8025). A [saúde da API](http://localhost:5287/health) fica na porta 5287.
 
 API e Worker executam em containers separados com PostgreSQL e Redis compartilhados.
@@ -19,8 +22,26 @@ Não é necessário criar `.env`, instalar Node/.NET no host, configurar Railway
 ou contratar SMTP. Mailpit é um sandbox local: não entrega e-mails a destinatários reais.
 WhatsApp, SMS e Push demonstram falha/DLQ porque ainda não possuem provedores.
 
+### Roteiro de 3 a 5 minutos
+
+1. Crie uma conta e abra o Dashboard para mostrar o isolamento por tenant.
+2. Envie um e-mail em **Nova notificação** e mostre a mensagem capturada no
+   [Mailpit](http://localhost:8025).
+3. Volte ao Inbox para mostrar a transição de processamento e abra o Monitor
+   de filas para acompanhar os eventos via SignalR.
+4. Envie SMS ou WhatsApp para mostrar a falha permanente, uma tentativa e a
+   DLQ.
+
+O Mailpit é um sandbox local: “aceito pelo SMTP” significa que a mensagem foi
+capturada localmente, não que foi entregue a um destinatário externo.
+
 Veja o [roteiro completo, persistência e testes](docs/local-demo.md).
 A [configuração de produção/Railway](docs/production-configuration.md) continua disponível como caminho separado.
+
+### Telas
+
+![Cadastro](docs/screenshots/registro.png)
+![Login](docs/screenshots/login.png)
 
 ## Executar e investigar envios
 
@@ -80,3 +101,22 @@ Distribuído sob a licença MIT. Veja LICENSE para mais informações.
 - GitHub: [Gabriel Kameoka](https://github.com/GabrielKameoka)
 - LinkedIn: [gabrielkameoka.in](https://www.linkedin.com/in/gabriel-mitsuru/)
 - E-mail: gabrielkameoka@gmail.com
+
+## Fluxo e limites conhecidos
+
+```text
+Angular -> API -> PostgreSQL
+              \-> Redis -> Worker -> SMTP -> Mailpit
+                         \-> retry/DLQ
+              \-> SignalR -> Monitor de filas
+```
+
+A API persiste e enfileira; o Worker processa fora do ciclo HTTP. O JWT define
+o tenant das consultas, o PostgreSQL mantém o estado auditável e o Redis
+transporta filas por prioridade e eventos do monitor. Migrations históricas e
+colunas de compatibilidade continuam preservadas, mas CRM, templates e inbound
+webhooks não fazem parte da superfície executável da demo.
+
+Próximos passos: provedores de SMS/WhatsApp, templates, CRM, webhooks inbound,
+observabilidade externa e deploy de produção. Essas áreas aparecem como
+roadmap, não como funcionalidades prontas.

@@ -17,6 +17,7 @@
       >
         {{ theme.theme() === "dark" ? "☼" : "☾" }}
       </button>
+      <button type="button" class="profile-button" (click)="logout()">Sair</button>
     </div>
   </header>
   <section class="intro">
@@ -24,23 +25,22 @@
       <p class="eyebrow">DEMONSTRAÇÃO LOCAL</p>
       <h1>Nova notificação</h1>
       <p class="muted">
-        Crie uma mensagem e acompanhe o processamento assíncrono pelo Worker.
+        Teste o fluxo de e-mail e acompanhe cada etapa do processamento.
       </p>
     </div>
   </section>
   <aside class="notice">
-    No ambiente local com Mailpit, e-mails são capturados em sandbox, sem
-    entrega a destinatários reais. WhatsApp, SMS e Push ainda não possuem
-    provedores e demonstram falha com envio à DLQ.
+    E-mails são aceitos pelo sandbox SMTP local e aparecem no Mailpit. Os
+    canais sem provedor configurado demonstram a rota de falha até a DLQ.
   </aside>
   @if (createdId) {
     <section class="result-card" role="status">
-      <h2>Notificação criada</h2>
+        <h2>Mensagem aceita pela API</h2>
       <p>
         ID: <code>{{ createdId }}</code>
       </p>
       <p>
-        A criação não confirma o envio. Acompanhe o status no
+        A API colocou a mensagem na fila. Acompanhe o processamento no
         <a routerLink="/inbox">inbox</a> e os eventos no
         <a routerLink="/monitor-filas">monitor de filas</a>.
       </p>
@@ -101,8 +101,7 @@
           required
         ></textarea>
         <small
-          >Até 4.000 caracteres. O AplicacaoId é gerado automaticamente como
-          UUID.</small
+          >Até 4.000 caracteres.</small
         >
         @if (form.touched && form.invalid) {
           <p role="alert">

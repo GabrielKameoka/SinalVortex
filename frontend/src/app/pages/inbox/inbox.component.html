@@ -6,6 +6,7 @@
       <a routerLink="/dashboard">Dashboard</a>
       <a routerLink="/monitor-filas">Filas</a>
       <button (click)="theme.toggle()" [attr.aria-label]="theme.theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'">{{ theme.theme() === 'dark' ? '☼' : '☾' }}</button>
+      <button (click)="logout()">Sair</button>
     </div>
   </header>
   <section class="heading">
@@ -48,9 +49,8 @@
           <div><dt>Criada em</dt><dd>{{ item.criadoEm | date:'dd/MM/yyyy HH:mm:ss' }}</dd></div>
           <div><dt>Processada em</dt><dd>{{ item.processadoEm ? (item.processadoEm | date:'dd/MM/yyyy HH:mm:ss') : 'Ainda não processada' }}</dd></div>
           <div><dt>ID</dt><dd>{{ item.id }}</dd></div>
-          <div><dt>Aplicação</dt><dd>{{ item.aplicacaoId }}</dd></div>
         </dl>
-        <p>O status de envio não comprova leitura nem entrega ao destinatário. Não há histórico de respostas disponível nesta API.</p>
+        <p>O status mostra o resultado do processamento no provedor. O Mailpit é um sandbox local e não entrega mensagens externas.</p>
       </aside>
     </ng-container>
   </section>

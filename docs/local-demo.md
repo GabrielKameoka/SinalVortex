@@ -23,7 +23,9 @@ Não utilize este Compose em produção.
 
 1. Abra http://localhost:4200 e cadastre uma conta em **Criar conta**. Cada cadastro cria um tenant.
 2. Entre no dashboard e clique em **Nova notificação**.
-3. Mantenha E-mail, informe `recrutador@example.test`, assunto e conteúdo. O frontend gera um AplicacaoId UUID e usa o endpoint existente `POST /api/v1/notificacoes`.
+3. Mantenha E-mail, informe `recrutador@example.test`, assunto e conteúdo. A
+   tela usa `POST /api/v1/notificacoes` e mostra o resultado da aceitação pela
+   API.
 4. Após a resposta `201`, a tela mostra o ID. No inbox, aguarde a atualização automática e confirme **Enviado**.
 5. Abra http://localhost:8025 e confira a captura da mensagem. Isso comprova captura SMTP no sandbox, não entrega externa.
 6. Mantenha o monitor de filas aberto e conectado. Em outra aba, faça login com o mesmo Tenant ID e crie outra notificação com WhatsApp ou SMS e telefone `5511999999999`. Confirme **DLQ**, uma tentativa no inbox e o motivo de provedor não implementado nos eventos do monitor. Os eventos são ao vivo, sem histórico retroativo.

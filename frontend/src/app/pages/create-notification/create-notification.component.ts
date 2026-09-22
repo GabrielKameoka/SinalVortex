@@ -7,6 +7,7 @@ import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { NotificationsService } from '../../services/notifications.service';
 import { ThemeService } from '../../core/theme.service';
+import { AuthService } from '../../core/auth.service';
 
 const nonBlank = (control: AbstractControl) => control.value?.trim() ? null : { required: true };
 
@@ -19,6 +20,7 @@ const nonBlank = (control: AbstractControl) => control.value?.trim() ? null : { 
 export class CreateNotificationComponent {
   private readonly notifications = inject(NotificationsService);
   readonly theme = inject(ThemeService);
+  private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly fb = inject(FormBuilder);
   readonly form = this.fb.nonNullable.group({
@@ -56,4 +58,6 @@ export class CreateNotificationComponent {
     this.error = '';
     this.form.reset({ canal: 1, prioridade: 2 });
   }
+
+  logout(): void { this.auth.logout(); }
 }

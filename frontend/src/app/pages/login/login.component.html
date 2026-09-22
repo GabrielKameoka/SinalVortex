@@ -23,6 +23,7 @@
           placeholder="••••••••"
           autocomplete="current-password"
       /></label>
+      <small class="muted password-help">Use de 12 a 128 caracteres.</small>
       <p class="form-error" *ngIf="error" role="alert">{{ error }}</p>
       <button class="primary-button" type="submit" [disabled]="loading">
         <span *ngIf="loading" class="spinner"></span

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SinalVortex.Application.Commands.Notificacoes;
 using SinalVortex.Application.Queries.Notificacoes;
 using SinalVortex.Domain.Exceptions;
@@ -19,6 +20,7 @@ public class NotificacoesController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting("notifications")]
     [ProducesResponseType(typeof(CriarNotificacaoResultDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Criar(
