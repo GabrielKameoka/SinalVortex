@@ -1,7 +1,9 @@
 using FluentValidation;
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -19,7 +21,6 @@ using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
-using SinalVortex.Infrastructure.Services.Webhooks;
 using StackExchange.Redis;
 using SinalVortex.Infrastructure.Telemetry;
 
@@ -71,6 +72,25 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        GetClientKey(context), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    options.AddPolicy("notifications", context => RateLimitPartition.GetFixedWindowLimiter(
+        GetTenantOrClientKey(context), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
 });
 
 // 1. Controllers & Documentação OpenAPI / Scalar
@@ -137,6 +157,8 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+// Compatibilidade de handlers históricos; os respectivos controllers não fazem
+// parte da superfície executável da demo.
 builder.Services.AddScoped<IAplicacaoRepository, AplicacaoRepository>();
 builder.Services.AddScoped<IContatoRepository, ContatoRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
@@ -144,7 +166,6 @@ builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IRedisQueueService, RedisQueueService>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
-builder.Services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
 builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
 builder.Services.AddScoped<TenantContext>();
@@ -176,6 +197,14 @@ var app = builder.Build();
 
 // 9. Pipeline Middleware Base
 app.UseMiddleware<ApiExceptionMiddleware>();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    await next();
+});
 app.UseCors("Frontend");
 
 // 10. Execução de Migrations Pendentes
@@ -225,6 +254,7 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseMiddleware<TenantResolverMiddleware>();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 app.MapHub<QueueMonitorHub>("/hubs/queue-monitor", options => options.CloseOnAuthenticationExpiration = true);
 
@@ -255,3 +285,9 @@ static string ResolvePostgresConnectionString(IConfiguration configuration)
 
     return builder.ConnectionString;
 }
+
+static string GetClientKey(HttpContext context) =>
+    context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client";
+
+static string GetTenantOrClientKey(HttpContext context) =>
+    context.User.FindFirst("tenant_id")?.Value ?? GetClientKey(context);

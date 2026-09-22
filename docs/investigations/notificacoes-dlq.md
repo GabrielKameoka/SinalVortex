@@ -19,7 +19,9 @@ O código explica a DLQ imediata de e-mail sem SMTP e de WhatsApp indisponível.
 
 - Usar Mailpit local, com SMTP em `127.0.0.1:1025` e interface em `127.0.0.1:8025`; fixar a imagem por digest.
 - Configurar o SMTP apenas em `Development` no Worker. Produção continua exigindo configuração explícita; nenhum envio é simulado como sucesso.
-- Restringir o registro MediatR do Worker ao handler de inbound webhook, único chamado por esse host. Manter a validação de dependências ativa e testar a resolução do handler sem serviços da API.
+- O Worker final consome somente as filas de notificações. O inbound webhook
+  foi retirado da superfície executável da demo; o driver outbound continua
+  disponível para evolução futura.
 - Tornar a porta PostgreSQL do Compose configurável por `SINALVORTEX_POSTGRES_PORT`, mantendo 5432 como padrão.
 - Substituir os testes que copiavam a lógica por testes HTTP que executam o Worker, dispatcher e serviços de e-mail/WhatsApp reais. Usar PostgreSQL/Redis isolados e servidor SMTP TCP local com respostas controladas.
 - Preservar APIs, entidades, migrations, classificação de falhas e mensagens antigas. A captura local demonstra aceitação SMTP, não entrega externa.
@@ -41,7 +43,7 @@ dotnet test backend/SinalVortex.slnx --configuration Release
 | SMTP responde 550 | `Dlq` após uma tentativa, motivo permanente persistido |
 | SMTP responde 451 | Três tentativas reais, depois `Dlq` com motivo persistido |
 | WhatsApp sem integração | `Dlq`, uma tentativa, motivo explícito, nenhum envio SMTP |
-| Registro de handlers do Worker | Container de DI válido sem dependências exclusivas da API; handler inbound resolvido |
+| Registro do Worker | Container de DI válido, com processamento de notificações e sem endpoint inbound |
 
 ### Resultados desta execução
 
