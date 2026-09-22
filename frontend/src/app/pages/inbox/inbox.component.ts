@@ -4,11 +4,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { BehaviorSubject, EMPTY, catchError, switchMap, timer } from 'rxjs';
 import { ThemeService } from '../../core/theme.service';
+import { AuthService } from '../../core/auth.service';
 import { NotificationPage, NotificationsService } from '../../services/notifications.service';
 
 @Component({ selector: 'sv-inbox', standalone: true, imports: [CommonModule, RouterLink], templateUrl: './inbox.component.html', styleUrl: './inbox.component.scss' })
 export class InboxComponent {
   readonly theme = inject(ThemeService);
+  readonly auth = inject(AuthService);
   private readonly service = inject(NotificationsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly requestedPage = new BehaviorSubject(1);
@@ -38,4 +40,5 @@ export class InboxComponent {
   }
   channelLabel(channel: number): string { return ({ 1: 'E-mail', 2: 'WhatsApp', 3: 'SMS', 4: 'Webhook', 5: 'Push' } as Record<number, string>)[channel] ?? 'Desconhecido'; }
   statusLabel(status: number): string { return ({ 1: 'Pendente', 2: 'Em processamento', 3: 'Enviado ao provedor', 4: 'Falhou', 5: 'DLQ' } as Record<number, string>)[status] ?? 'Desconhecido'; }
+  logout(): void { this.auth.logout(); }
 }

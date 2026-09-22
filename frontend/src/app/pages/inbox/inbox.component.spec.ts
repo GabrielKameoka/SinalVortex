@@ -3,12 +3,14 @@ import { of, throwError } from 'rxjs';
 import { InboxComponent } from './inbox.component';
 import { NotificationsService } from '../../services/notifications.service';
 import { ThemeService } from '../../core/theme.service';
+import { AuthService } from '../../core/auth.service';
 
 describe('InboxComponent real data', () => {
   function setup(list: jasmine.Spy) {
     TestBed.configureTestingModule({ providers: [
       { provide: NotificationsService, useValue: { list } },
-      { provide: ThemeService, useValue: {} }
+      { provide: ThemeService, useValue: {} },
+      { provide: AuthService, useValue: jasmine.createSpyObj('AuthService', ['logout']) }
     ] });
     return TestBed.runInInjectionContext(() => new InboxComponent());
   }

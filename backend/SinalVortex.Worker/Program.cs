@@ -10,7 +10,6 @@ using SinalVortex.Infrastructure.Persistence;
 using SinalVortex.Infrastructure.Repositories;
 using SinalVortex.Infrastructure.Services;
 using SinalVortex.Infrastructure.Services.Notificacoes;
-using SinalVortex.Infrastructure.Services.Webhooks;
 using SinalVortex.Worker;
 using SinalVortex.Worker.Workers;
 using StackExchange.Redis;
@@ -48,9 +47,8 @@ builder.Services.AddScoped<ISystemNotificacaoRepository, SystemNotificacaoReposi
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
-// Resiliência e Webhooks
+// Resiliência de entrega
 builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
-builder.Services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
 
 // Estratégias de Notificação
 builder.Services.AddHttpClient("notification-webhook", client => client.Timeout = TimeSpan.FromSeconds(15))
@@ -64,13 +62,9 @@ builder.Services.AddScoped<INotificacaoService, WebhookNotificacaoService>();
 builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();
 builder.Services.AddSingleton<QueueMonitorPublisher>();
 
-// MediatR
-builder.Services.AddWorkerApplicationHandlers();
-
 // Workers em Segundo Plano
 builder.Services.AddHostedService<SignalProcessingWorker>();
 builder.Services.AddHostedService<LimpezaNotificacoesWorker>();
-builder.Services.AddHostedService<InboundWebhookWorker>();
 
 var host = builder.Build();
 

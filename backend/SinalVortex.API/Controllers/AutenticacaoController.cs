@@ -1,12 +1,14 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SinalVortex.Application.Commands.Autenticacao;
 
 namespace SinalVortex.API.Controllers;
 
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting("auth")]
 [Route("api/v1/autenticacao")]
 public sealed class AutenticacaoController(ISender mediator) : ControllerBase
 {
