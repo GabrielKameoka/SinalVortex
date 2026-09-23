@@ -1,0 +1,48 @@
+<main class="demo-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/"><span class="brand-mark">SV</span><span>SinalVortex</span></a>
+    <div class="top-actions">
+      <span class="demo-badge">DEMO LOCAL</span>
+      <a routerLink="/login">Entrar no console</a>
+    </div>
+  </header>
+
+  <section class="intro">
+    <p class="eyebrow">Inbox de notificações</p>
+    <h1>Uma conversa para cada envio.</h1>
+    <p>Simule o envio de uma notificação e acompanhe a própria mensagem na mesma tela. Nada sai do seu navegador.</p>
+  </section>
+
+  <section class="demo-grid">
+    <section class="conversation-card" aria-label="Conversa simulada">
+      <header class="conversation-header">
+        <div class="avatar">CD</div>
+        <div><strong>{{ recipient }}</strong><small>Canal: e-mail · Sandbox local</small></div>
+        <span class="online-dot">● pronto</span>
+      </header>
+      <div class="messages">
+        <div class="day">Hoje</div>
+        <article *ngFor="let message of messages()" class="message" [class.inbound]="message.direction === 'inbound'" [class.system]="message.direction === 'system'">
+          <small *ngIf="message.subject" class="subject">{{ message.subject }}</small>
+          <p>{{ message.text }}</p>
+          <footer><time>{{ message.time }}</time><span *ngIf="message.status">{{ message.status }} ✓</span></footer>
+        </article>
+      </div>
+    </section>
+
+    <aside class="send-card">
+      <p class="eyebrow">Fluxo demonstrável</p>
+      <h2>Enviar notificação</h2>
+      <p class="muted">A mensagem aparece na conversa e fica salva apenas no armazenamento local deste navegador.</p>
+      <label for="demo-recipient">Destinatário</label>
+      <input id="demo-recipient" [value]="recipient" readonly />
+      <label for="demo-subject">Assunto</label>
+      <input id="demo-subject" [(ngModel)]="subject" maxlength="120" />
+      <label for="demo-text">Mensagem</label>
+      <textarea id="demo-text" [(ngModel)]="text" rows="5" maxlength="500"></textarea>
+      <button class="primary-button" type="button" (click)="send()" [disabled]="sending || !subject.trim() || !text.trim()">{{ sending ? 'Processando…' : 'Simular envio' }}</button>
+      <button class="reset-button" type="button" (click)="clearDemo()">Limpar conversa</button>
+      <p class="scope-note"><strong>Escopo honesto:</strong> esta página é uma simulação visual gratuita. O console real conecta API, PostgreSQL, Redis, Worker e Mailpit.</p>
+    </aside>
+  </section>
+</main>

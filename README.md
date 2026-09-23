@@ -5,6 +5,18 @@ SMTP sandbox, retry, DLQ e monitoramento em tempo real. A demo foi desenhada
 para tornar visível o caminho completo de uma mensagem sem depender de
 provedores pagos.
 
+## Demo pública para portfólio
+
+Abra [localhost:4200/demo](http://localhost:4200/demo) para testar uma versão
+gratuita e autocontida da ideia: um inbox em formato de conversa, envio
+simulado e status exibido na própria tela. A demo usa apenas o armazenamento do
+navegador e não envia mensagens reais, então pode ser publicada em um deploy
+estático sem contratar SMTP ou cadastrar destinatários.
+
+Essa rota é uma vitrine visual. O fluxo de engenharia completo continua na
+[demonstração local](docs/local-demo.md), com API, PostgreSQL, Redis, Worker e
+Mailpit.
+
 ## Demonstração local completa
 
 Requer Docker com Compose. Na raiz do repositório:
@@ -20,7 +32,8 @@ Acompanhe o status no Inbox, os eventos no Monitor de filas e a captura SMTP no
 API e Worker executam em containers separados com PostgreSQL e Redis compartilhados.
 Não é necessário criar `.env`, instalar Node/.NET no host, configurar Railway, domínio
 ou contratar SMTP. Mailpit é um sandbox local: não entrega e-mails a destinatários reais.
-WhatsApp, SMS e Push demonstram falha/DLQ porque ainda não possuem provedores.
+WhatsApp e SMS usam provedores simulados locais; Push continua demonstrando a
+rota de falha/DLQ por ainda não possuir um provedor.
 
 ### Roteiro de 3 a 5 minutos
 
@@ -29,8 +42,8 @@ WhatsApp, SMS e Push demonstram falha/DLQ porque ainda não possuem provedores.
    [Mailpit](http://localhost:8025).
 3. Volte ao Inbox para mostrar a transição de processamento e abra o Monitor
    de filas para acompanhar os eventos via SignalR.
-4. Envie SMS ou WhatsApp para mostrar a falha permanente, uma tentativa e a
-   DLQ.
+4. Envie SMS ou WhatsApp para mostrar o processamento pelo provedor simulado
+   local e o status **Enviado**. Push continua disponível como exemplo de DLQ.
 
 O Mailpit é um sandbox local: “aceito pelo SMTP” significa que a mensagem foi
 capturada localmente, não que foi entregue a um destinatário externo.
@@ -117,6 +130,7 @@ transporta filas por prioridade e eventos do monitor. Migrations históricas e
 colunas de compatibilidade continuam preservadas, mas CRM, templates e inbound
 webhooks não fazem parte da superfície executável da demo.
 
-Próximos passos: provedores de SMS/WhatsApp, templates, CRM, webhooks inbound,
-observabilidade externa e deploy de produção. Essas áreas aparecem como
-roadmap, não como funcionalidades prontas.
+Próximos passos: provedores reais de SMS/WhatsApp, templates, CRM, webhooks
+inbound, observabilidade externa e deploy de produção. A stack local completa
+usa Mailpit e simuladores seguros para demonstrar o fluxo sem custos ou
+destinatários reais.

@@ -30,8 +30,9 @@
     </div>
   </section>
   <aside class="notice">
-    E-mails são aceitos pelo sandbox SMTP local e aparecem no Mailpit. Os
-    canais sem provedor configurado demonstram a rota de falha até a DLQ.
+    E-mails são aceitos pelo sandbox SMTP local e aparecem no Mailpit. WhatsApp
+    e SMS passam por provedores simulados locais: o Worker processa a fila e
+    marca a notificação como enviada sem contatar números reais.
   </aside>
   @if (createdId) {
     <section class="result-card" role="status">
@@ -60,8 +61,8 @@
         <label for="canal">Canal</label>
         <select id="canal" formControlName="canal">
           <option [ngValue]="1">E-mail</option>
-          <option [ngValue]="2">WhatsApp (DLQ)</option>
-          <option [ngValue]="3">SMS (DLQ)</option>
+          <option [ngValue]="2">WhatsApp (simulado local)</option>
+          <option [ngValue]="3">SMS (simulado local)</option>
           <option [ngValue]="5">Push (DLQ)</option>
         </select>
         <label for="destinatario">Destinatário</label>

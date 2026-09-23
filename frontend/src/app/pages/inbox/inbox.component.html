@@ -18,9 +18,10 @@
   <p *ngIf="!loading() && !error() && page()?.totalCount === 0">Nenhuma notificação cadastrada. Use Nova notificação para criar sua primeira mensagem.</p>
   <section class="inbox-grid" *ngIf="page() as data" [attr.aria-busy]="loading()">
     <aside class="conversations">
-      <h2>Notificações</h2>
-      <button *ngFor="let item of data.items" class="conversation" [class.selected]="selected()?.id === item.id" (click)="selectedId.set(item.id)" [attr.aria-pressed]="selected()?.id === item.id">
-        <span><strong>{{ item.destinatario }}</strong><small>{{ item.assunto || item.conteudo }}</small><small>{{ channelLabel(item.canal) }} · {{ statusLabel(item.status) }}</small></span>
+      <h2>Conversas</h2>
+      <button *ngFor="let conversation of conversations()" class="conversation" [class.selected]="selectedConversationKey() === conversation.key" (click)="selectedId.set(conversation.key)" [attr.aria-pressed]="selectedConversationKey() === conversation.key">
+        <span class="avatar">{{ conversation.recipient.slice(0, 2).toUpperCase() }}</span>
+        <span><strong>{{ conversation.recipient }}</strong><small>{{ conversation.latest.assunto || conversation.latest.conteudo }}</small><small>{{ conversation.items.length }} {{ conversation.items.length === 1 ? 'notificação' : 'notificações' }} · {{ statusLabel(conversation.latest.status) }}</small></span>
       </button>
       <nav aria-label="Paginação" *ngIf="data.totalPages > 1">
         <button [disabled]="!data.hasPreviousPage || loading()" (click)="goTo(data.pageNumber - 1)">Anterior</button>
@@ -28,29 +29,30 @@
         <button [disabled]="!data.hasNextPage || loading()" (click)="goTo(data.pageNumber + 1)">Próxima</button>
       </nav>
     </aside>
-    <ng-container *ngIf="selected() as item">
+    <ng-container *ngIf="selectedConversation() as conversation">
       <section class="timeline">
-        <header><div><h2>{{ item.destinatario }}</h2><small>{{ channelLabel(item.canal) }}</small></div></header>
+        <header><div><h2>{{ conversation.recipient }}</h2><small>{{ conversation.items.length }} notificações nesta conversa</small></div></header>
         <div class="events">
-          <div class="day">{{ item.criadoEm | date:'dd/MM/yyyy' }}</div>
-          <article class="message outbound">
+          <div class="day">Histórico de notificações</div>
+          <article *ngFor="let item of conversation.items" class="message outbound">
             <strong *ngIf="item.assunto">{{ item.assunto }}</strong>
             <p>{{ item.conteudo }}</p>
-            <time>{{ item.criadoEm | date:'HH:mm:ss' }}</time>
+            <small>{{ channelLabel(item.canal) }} · {{ statusLabel(item.status) }}</small>
+            <time>{{ item.criadoEm | date:'dd/MM/yyyy HH:mm:ss' }}</time>
           </article>
         </div>
       </section>
       <aside class="crm">
         <h2>Dados da notificação</h2>
         <dl>
-          <div><dt>Status registrado</dt><dd>{{ statusLabel(item.status) }}</dd></div>
-          <div><dt>Prioridade</dt><dd>{{ item.prioridade === 3 ? 'Alta' : item.prioridade === 2 ? 'Normal' : 'Baixa' }}</dd></div>
-          <div><dt>Tentativas</dt><dd>{{ item.tentativas }} / {{ item.maxTentativas }}</dd></div>
-          <div><dt>Criada em</dt><dd>{{ item.criadoEm | date:'dd/MM/yyyy HH:mm:ss' }}</dd></div>
-          <div><dt>Processada em</dt><dd>{{ item.processadoEm ? (item.processadoEm | date:'dd/MM/yyyy HH:mm:ss') : 'Ainda não processada' }}</dd></div>
-          <div><dt>ID</dt><dd>{{ item.id }}</dd></div>
+          <div><dt>Status registrado</dt><dd>{{ statusLabel(conversation.latest.status) }}</dd></div>
+          <div><dt>Prioridade</dt><dd>{{ conversation.latest.prioridade === 3 ? 'Alta' : conversation.latest.prioridade === 2 ? 'Normal' : 'Baixa' }}</dd></div>
+          <div><dt>Tentativas</dt><dd>{{ conversation.latest.tentativas }} / {{ conversation.latest.maxTentativas }}</dd></div>
+          <div><dt>Criada em</dt><dd>{{ conversation.latest.criadoEm | date:'dd/MM/yyyy HH:mm:ss' }}</dd></div>
+          <div><dt>Processada em</dt><dd>{{ conversation.latest.processadoEm ? (conversation.latest.processadoEm | date:'dd/MM/yyyy HH:mm:ss') : 'Ainda não processada' }}</dd></div>
+          <div><dt>ID</dt><dd>{{ conversation.latest.id }}</dd></div>
         </dl>
-        <p>O status mostra o resultado do processamento no provedor. O Mailpit é um sandbox local e não entrega mensagens externas.</p>
+        <p>O status mostra o resultado do processamento. E-mail é capturado pelo Mailpit; WhatsApp e SMS usam provedores simulados locais e não enviam mensagens externas.</p>
       </aside>
     </ng-container>
   </section>

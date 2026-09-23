@@ -83,9 +83,15 @@ describe('RegisterComponent', () => {
     });
   }
 
+  it('shows a specific message when the API reports a registered e-mail', () => {
+    const component = setup().componentInstance;
+    component.submit();
+    pending.error(new HttpErrorResponse({ status: 400, error: { detail: 'Este e-mail já foi registrado.' } }));
+    expect(component.error).toBe('Esse e-mail já foi registrado. Entre na sua conta ou use outro e-mail.');
+  });
+
   it('links back to login', () => {
     const fixture = setup();
     expect(fixture.nativeElement.querySelector('a[href="/login"]')).toBeTruthy();
   });
 });
-

@@ -33,4 +33,17 @@ describe('InboxComponent real data', () => {
     expect(component.selected()).toBeNull();
     TestBed.resetTestingModule();
   }));
+
+  it('groups notifications from the same recipient into one conversation', fakeAsync(() => {
+    const items = [
+      { id: '3', aplicacaoId: 'app', destinatario: 'outro@example.test', canal: 1, prioridade: 2, status: 3, conteudo: 'Outra', assunto: 'Outro', tentativas: 1, maxTentativas: 3, processadoEm: null, criadoEm: '2026-09-22T12:00:00Z' },
+      { id: '2', aplicacaoId: 'app', destinatario: 'cliente@example.test', canal: 1, prioridade: 2, status: 3, conteudo: 'Segundo', assunto: 'Segundo', tentativas: 1, maxTentativas: 3, processadoEm: null, criadoEm: '2026-09-22T11:00:00Z' },
+      { id: '1', aplicacaoId: 'app', destinatario: 'CLIENTE@example.test', canal: 1, prioridade: 2, status: 3, conteudo: 'Primeiro', assunto: 'Primeiro', tentativas: 1, maxTentativas: 3, processadoEm: null, criadoEm: '2026-09-22T10:00:00Z' }
+    ];
+    const component = setup(jasmine.createSpy().and.returnValue(of({ items, totalCount: 3, totalPages: 1, pageNumber: 1 })));
+    tick(0);
+    expect(component.conversations().length).toBe(2);
+    expect(component.conversations().find(conversation => conversation.key === 'cliente@example.test')?.items.length).toBe(2);
+    TestBed.resetTestingModule();
+  }));
 });

@@ -2,7 +2,7 @@
 
 # Dados e envios reais
 
-A Inbox usa GET /api/v1/notificacoes, com paginação e atualização a cada 5 segundos. Não contém conversas, contatos, tags, respostas ou contadores não lidos de demonstração. O dashboard já usa a API. Registros históricos podem ter sido marcados como enviados pelos drivers simulados antigos: não foram apagados nem reclassificados.
+A Inbox usa GET /api/v1/notificacoes, com paginação e atualização a cada 5 segundos. A interface agrupa as notificações do mesmo destinatário em uma conversa, sem inventar respostas ou contadores não lidos. O dashboard já usa a API. Registros históricos podem ter sido marcados como enviados pelos drivers locais: não foram apagados nem reclassificados.
 
 O monitor lê os tamanhos reais das quatro listas compartilhadas do Redis. Os contadores são globais; os eventos são separados por tenant. A API publica eventos ao enfileirar, e o Worker publica consumo e resultado. O cliente consulta novamente o snapshot a cada 3 segundos e tenta reconectar. Eventos recebidos durante a conexão ficam limitados a 50; não existe histórico persistido desses logs.
 
@@ -74,6 +74,10 @@ Configure `WebhookSettings__AllowedOrigins__0` (e índices seguintes) com origen
 
 ## Integrações pendentes
 
-SMS, WhatsApp e Push ainda precisam da escolha e das credenciais dos provedores. Até a integração estar configurada, geram uma falha explícita e seguem para DLQ, sem registrar envio fictício. Reinicie API e Worker após atualizar o código. Não reprocessamos mensagens antigas automaticamente.
+Na demonstração local, SMS e WhatsApp usam um provedor simulado controlado por
+`NotificationSettings:SimulateExternalChannels=true`. Ele percorre Redis, Worker,
+status e monitor, mas não contata números reais. Em produção, mantenha essa opção
+desligada e substitua os drivers por integrações reais com credenciais e limites
+operacionais próprios. Push ainda segue para DLQ quando não houver provedor configurado.
 
 Os testes substituem os provedores externos apenas dentro do host de teste. Há um teste SMTP com servidor TCP local e testes HTTP dos Webhooks. Nenhum teste envia mensagens a contatos reais. Referência do transporte HTTP: https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory
