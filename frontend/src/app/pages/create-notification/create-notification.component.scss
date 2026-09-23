@@ -4,16 +4,17 @@
 .brand { display:flex; align-items:center; gap:12px; color:var(--ink); font-weight:850; letter-spacing:-.03em; text-decoration:none; }
 .brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:11px; background:var(--accent); color:#08100a; font-size:.75rem; font-weight:900; letter-spacing:-.12em; }
 .top-actions { display:flex; align-items:center; gap:10px; }
-.inbox-link, .icon-button { border:1px solid var(--border); background:var(--card); color:var(--ink); border-radius:10px; cursor:pointer; font:inherit; font-weight:700; text-decoration:none; }
+.inbox-link, .icon-button, .profile-button { border:1px solid var(--border); background:var(--card); color:var(--ink); border-radius:10px; cursor:pointer; font:inherit; font-weight:700; text-decoration:none; }
 .inbox-link { padding:10px 14px; }
 .icon-button { width:40px; height:40px; font-size:1.2rem; }
+.profile-button { padding:10px 14px; }
 .intro { margin-bottom:24px; }
 .eyebrow { margin:0 0 8px; color:var(--accent-strong); font-size:.72rem; font-weight:850; letter-spacing:.12em; }
 h1 { margin:0; font-size:clamp(2rem,4vw,3.3rem); letter-spacing:-.07em; }
 .muted { margin:10px 0 0; color:var(--muted); }
 .notice, .form-card, .result-card { border:1px solid var(--border); background:var(--card); border-radius:14px; }
 .notice { margin-bottom:16px; padding:16px 18px; color:var(--muted); line-height:1.6; }
-.form-card, .result-card { max-width:760px; padding:26px; animation:rise .24s ease-out; }
+.form-card, .result-card { width:100%; max-width:920px; box-sizing:border-box; padding:30px clamp(24px,4vw,46px); animation:rise .24s ease-out; }
 fieldset { display:flex; flex-direction:column; gap:8px; min-width:0; padding:0; margin:0; border:0; }
 label { margin-top:10px; color:var(--muted); font-size:.8rem; font-weight:700; }
 input, select, textarea { width:100%; box-sizing:border-box; padding:13px 14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--ink); font:inherit; transition:border-color .18s; }

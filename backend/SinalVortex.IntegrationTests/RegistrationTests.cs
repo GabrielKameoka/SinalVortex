@@ -40,5 +40,17 @@ public class RegistrationTests(CustomWebApplicationFactory factory) : IClassFixt
             new { nome = "Registration Test", email = "short@example.test", senha = "short" });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
-}
 
+    [Fact]
+    public async Task Register_RejectsEmailAlreadyRegistered()
+    {
+        using var client = factory.CreateClient();
+        var email = $"duplicate-{Guid.NewGuid():N}@example.test";
+        var payload = new { nome = "Registration Test", email, senha = "registration-test-password-123" };
+        using var first = await client.PostAsJsonAsync("/api/v1/autenticacao/registrar", payload);
+        using var second = await client.PostAsJsonAsync("/api/v1/autenticacao/registrar", payload);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
+        Assert.Contains("já foi registrado", await second.Content.ReadAsStringAsync());
+    }
+}

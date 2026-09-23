@@ -1,5 +1,9 @@
 # Demonstração local
 
+> Para apresentar a ideia sem subir a infraestrutura, use a rota pública
+> `/demo`. Ela simula o inbox e o envio no navegador; este documento descreve
+> o fluxo completo com serviços locais.
+
 ## Iniciar
 
 Requer Docker Engine/Desktop com Compose e portas 4200, 5287 e 8025 livres.
@@ -28,8 +32,8 @@ Não utilize este Compose em produção.
    API.
 4. Após a resposta `201`, a tela mostra o ID. No inbox, aguarde a atualização automática e confirme **Enviado**.
 5. Abra http://localhost:8025 e confira a captura da mensagem. Isso comprova captura SMTP no sandbox, não entrega externa.
-6. Mantenha o monitor de filas aberto e conectado. Em outra aba, faça login com o mesmo Tenant ID e crie outra notificação com WhatsApp ou SMS e telefone `5511999999999`. Confirme **DLQ**, uma tentativa no inbox e o motivo de provedor não implementado nos eventos do monitor. Os eventos são ao vivo, sem histórico retroativo.
-7. Confira que o ID do e-mail não aparece na DLQ. O inbox e os eventos do monitor são isolados pelo tenant autenticado; os contadores das filas são globais.
+6. Mantenha o monitor de filas aberto e conectado. Em outra aba, faça login com o mesmo Tenant ID e crie notificações por WhatsApp e SMS usando `5511999999999`. Confirme **Enviado** no inbox e o evento de sucesso do provedor simulado local. Nenhum número real é contatado.
+7. Confira que os três canais aparecem na mesma conversa do destinatário e que nenhum deles foi para a DLQ. O inbox e os eventos do monitor são isolados pelo tenant autenticado; os contadores das filas são globais.
 
 O formulário expõe E-mail, WhatsApp, SMS e Push. Webhook permanece no contrato da API,
 mas não faz parte deste roteiro, pois exigiria configurar um receptor.
@@ -74,7 +78,7 @@ npm test -- --watch=false --browsers=ChromeHeadless
 - Compose validado e os seis serviços construídos/iniciados; API saudável e Worker em Development.
 - Cadastro pelo Angular do container: HTTP 201; login e dashboard verificados.
 - E-mail criado pelo formulário: HTTP 201, status Enviado, uma tentativa e mensagem capturada no Mailpit.
-- SMS criado pelo formulário: HTTP 201, DLQ com uma tentativa e motivo explícito no monitor conectado.
+- SMS e WhatsApp criados pelo formulário: HTTP 201, status Enviado pelo provedor simulado local e evento de sucesso no monitor conectado.
 - Reinício dos seis containers: API saudável e as duas notificações preservadas no inbox.
 - Backend: 8 testes unitários e 39 de integração aprovados.
 - Frontend: `npm ci`, build de produção e 21 testes aprovados. ChromeHeadless usou o Brave/Chromium instalado via `CHROME_BIN`.

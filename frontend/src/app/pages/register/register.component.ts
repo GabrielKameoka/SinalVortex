@@ -41,10 +41,13 @@ export class RegisterComponent {
     ).subscribe({
       next: response => { this.tenantId = response.tenantId; this.form.reset(); },
       error: (error: HttpErrorResponse) => {
-        this.error = error.status === 0
+        const detail = typeof error.error?.detail === 'string' ? error.error.detail : '';
+        this.error = detail.toLowerCase().includes('já foi registrado')
+          ? 'Esse e-mail já foi registrado. Entre na sua conta ou use outro e-mail.'
+          : error.status === 0
           ? 'Não foi possível conectar à API. Confira sua conexão. Se o envio foi interrompido, a conta pode ter sido criada.'
           : error.status === 400
-            ? 'Confira os dados informados. ' + (typeof error.error?.detail === 'string' ? error.error.detail : '')
+            ? 'Confira os dados informados. ' + detail
             : 'Não foi possível concluir o cadastro. Tente novamente mais tarde.';
       }
     });
@@ -60,4 +63,3 @@ export class RegisterComponent {
     }
   }
 }
-
