@@ -16,7 +16,7 @@ Os quatro contadores consultam as listas compartilhadas do Redis e são globais,
 4. Execute `npm ci` e `npm start` dentro de `frontend`.
 5. Faça login, abra `/monitor-filas` e espere o estado conectado.
 6. Faça um POST de notificação no mesmo tenant. Entrada, consumo e resultado aparecem sem recarregar.
-7. Um provedor não configurado deve gerar falha/DLQ, nunca envio fictício. Consulte `real-delivery.md` para SMTP e Webhook.
+7. No modo local, SMS e WhatsApp usam provedores simulados e geram sucesso sem contato externo. Um provedor realmente não configurado, como Push, deve gerar falha/DLQ, nunca envio fictício. Consulte `real-delivery.md` para SMTP e Webhook.
 
 Mensagens consumidas rapidamente podem entrar e sair entre dois snapshots. O feed registra os eventos observados mesmo quando o contador volta a zero. Eventos perdidos durante desconexão não são recriados.
 

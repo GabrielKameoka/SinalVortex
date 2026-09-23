@@ -8,9 +8,11 @@ import { LoginComponent } from './pages/login/login.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { InboxComponent } from './pages/inbox/inbox.component';
 import { QueueMonitorComponent } from './pages/queue-monitor/queue-monitor.component';
+import { DemoComponent } from './pages/demo/demo.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'demo', component: DemoComponent },
   { path: 'registro', component: RegisterComponent, canActivate: [() => inject(AuthService).isAuthenticated() ? inject(Router).createUrlTree(['/dashboard']) : true] },
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
   { path: 'nova-notificacao', component: CreateNotificationComponent, canActivate: [authGuard] },

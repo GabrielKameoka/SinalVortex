@@ -14,6 +14,7 @@ using SinalVortex.Worker;
 using SinalVortex.Worker.Workers;
 using StackExchange.Redis;
 using SinalVortex.Infrastructure.Telemetry;
+using SinalVortex.Domain.Enums;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -54,9 +55,17 @@ builder.Services.AddSingleton<IEmailResiliencePolicy, EmailResiliencePolicy>();
 builder.Services.AddHttpClient("notification-webhook", client => client.Timeout = TimeSpan.FromSeconds(15))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<INotificacaoService, EmailNotificacaoService>();
-builder.Services.AddScoped<INotificacaoService, SmsNotificacaoService>();
+if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("NotificationSettings:SimulateExternalChannels"))
+{
+    builder.Services.AddScoped<INotificacaoService>(sp => new LocalChannelSimulationService(CanalNotificacao.Sms, sp.GetRequiredService<ILogger<LocalChannelSimulationService>>()));
+    builder.Services.AddScoped<INotificacaoService>(sp => new LocalChannelSimulationService(CanalNotificacao.WhatsApp, sp.GetRequiredService<ILogger<LocalChannelSimulationService>>()));
+}
+else
+{
+    builder.Services.AddScoped<INotificacaoService, SmsNotificacaoService>();
+    builder.Services.AddScoped<INotificacaoService, WhatsappNotificacaoService>();
+}
 builder.Services.AddScoped<INotificacaoService, PushNotificacaoService>();
-builder.Services.AddScoped<INotificacaoService, WhatsappNotificacaoService>();
 builder.Services.AddScoped<INotificacaoService, WebhookNotificacaoService>();
 
 builder.Services.AddScoped<INotificacaoDispatcher, NotificacaoDispatcher>();

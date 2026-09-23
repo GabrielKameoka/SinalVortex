@@ -26,7 +26,7 @@ export class NotificationsService {
   }
   list(page: number) {
     return this.http.get<NotificationPage>(`${environment.apiBaseUrl}/notificacoes`, {
-      params: { pageNumber: page, pageSize: 20 }
+      params: { pageNumber: page, pageSize: 100 }
     });
   }
 }
